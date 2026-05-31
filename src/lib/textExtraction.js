@@ -2,10 +2,9 @@ import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 import Tesseract from 'tesseract.js'
 import { createCanvas } from 'canvas'
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs'
+import { createRequire } from 'module'
 
-// Disable worker completely — run pdfjs in main thread
-GlobalWorkerOptions.workerSrc = null
+const require = createRequire(import.meta.url)
 
 // Extract plain text from a file buffer based on its MIME type
 export async function extractText(buffer, mimeType, filename) {
@@ -41,8 +40,15 @@ async function extractFromPdf(buffer) {
 
 async function extractFromScannedPdf(buffer) {
   try {
+    // Dynamically import pdfjs only when needed to avoid top-level worker issues
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    
+    // Use a blob URL workaround to satisfy the workerSrc requirement
+    // while still running in the main thread via useWorkerFetch: false
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `data:text/javascript,`
+
     const uint8Array = new Uint8Array(buffer)
-    const loadingTask = getDocument({
+    const loadingTask = pdfjsLib.getDocument({
       data: uint8Array,
       useWorkerFetch: false,
       isEvalSupported: false,
