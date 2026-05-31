@@ -20,6 +20,7 @@
     "multer": "^1.4.5-lts.1",
     "openai": "^4.52.0",
     "pdf-parse": "^1.1.1",
+    "pdf-to-png-converter": "^4.0.0",
     "pdf2pic": "^3.2.0",
     "pdfjs-dist": "^6.0.227",
     "puppeteer": "^22.0.0",

@@ -2,9 +2,7 @@ import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 import Tesseract from 'tesseract.js'
 import { createCanvas } from 'canvas'
-import { createRequire } from 'module'
-
-const require = createRequire(import.meta.url)
+import { pdfToPng } from 'pdf-to-png-converter'
 
 // Extract plain text from a file buffer based on its MIME type
 export async function extractText(buffer, mimeType, filename) {
@@ -40,41 +38,21 @@ async function extractFromPdf(buffer) {
 
 async function extractFromScannedPdf(buffer) {
   try {
-    // Dynamically import pdfjs only when needed to avoid top-level worker issues
-    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-    
-    // Use a blob URL workaround to satisfy the workerSrc requirement
-    // while still running in the main thread via useWorkerFetch: false
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `data:text/javascript,`
-
-    const uint8Array = new Uint8Array(buffer)
-    const loadingTask = pdfjsLib.getDocument({
-      data: uint8Array,
-      useWorkerFetch: false,
-      isEvalSupported: false,
+    const pages = await pdfToPng(buffer, {
+      disableFontFace: true,
       useSystemFonts: true,
+      viewportScale: 2.0,
     })
-    const pdfDoc = await loadingTask.promise
-    const numPages = pdfDoc.numPages
+
+    console.log(`[OCR] Processing ${pages.length} page(s) via image OCR`)
+
     const pageTexts = []
-
-    console.log(`[OCR] Processing ${numPages} page(s) via image OCR`)
-
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      const page = await pdfDoc.getPage(pageNum)
-      const viewport = page.getViewport({ scale: 2.0 })
-      const canvas = createCanvas(viewport.width, viewport.height)
-      const ctx = canvas.getContext('2d')
-
-      await page.render({ canvasContext: ctx, viewport }).promise
-
-      const imageBuffer = canvas.toBuffer('image/png')
-      const { data: { text } } = await Tesseract.recognize(imageBuffer, 'deu+eng', {
+    for (let i = 0; i < pages.length; i++) {
+      const { data: { text } } = await Tesseract.recognize(pages[i].content, 'deu+eng', {
         logger: () => {},
       })
-
       if (text?.trim()) pageTexts.push(text.trim())
-      console.log(`[OCR] Page ${pageNum}/${numPages} processed`)
+      console.log(`[OCR] Page ${i + 1}/${pages.length} processed`)
     }
 
     return pageTexts.join('\n\n')
