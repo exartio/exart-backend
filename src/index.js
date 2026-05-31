@@ -7,6 +7,8 @@ import orgsRouter from './routes/orgs.js'
 import uploadsRouter from './routes/uploads.js'
 import casesRouter from './routes/cases.js'
 import verificationRouter from './routes/verification.js'
+import generateRouter from './routes/generate.js'
+import exportRouter from './routes/export.js'
 
 const app = express()
 
@@ -20,10 +22,9 @@ app.use(cors({
 }))
 
 // Stripe webhook MUST be registered before express.json()
-// Stripe requires the raw request body for signature verification
 app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }))
 
-// JSON body parsing for all other routes
+// JSON body parsing
 app.use(express.json())
 
 // Routes
@@ -32,6 +33,8 @@ app.use('/api/orgs', orgsRouter)
 app.use('/api/uploads', uploadsRouter)
 app.use('/api/cases', casesRouter)
 app.use('/api/verification', verificationRouter)
+app.use('/api/generate', generateRouter)
+app.use('/api/export', exportRouter)
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }))
