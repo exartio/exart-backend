@@ -15,10 +15,11 @@ const app = express()
 // CORS
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL,
-    'http://localhost:3001',
+    'https://exart-io.webflow.io',
+    'https://exart.io',
+    'http://localhost:3000'
   ],
-  credentials: true,
+  credentials: true
 }))
 
 // Stripe webhook MUST be registered before express.json()
