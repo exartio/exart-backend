@@ -1,7 +1,6 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-
 import stripeRouter from './routes/stripe.js'
 import orgsRouter from './routes/orgs.js'
 import uploadsRouter from './routes/uploads.js'
@@ -11,6 +10,22 @@ import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
 import subscriptionsRouter from './routes/subscriptions.js'
+
+// ── Catch unhandled rejections before they crash the process ──
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('=== UNHANDLED REJECTION ===')
+  console.error('Promise:', promise)
+  console.error('Reason:', JSON.stringify(reason, null, 2))
+  console.error('Reason (raw):', reason)
+  console.error('===========================')
+  // Do NOT re-throw — log and continue
+})
+
+process.on('uncaughtException', (err) => {
+  console.error('=== UNCAUGHT EXCEPTION ===')
+  console.error(err)
+  console.error('==========================')
+})
 
 const app = express()
 
