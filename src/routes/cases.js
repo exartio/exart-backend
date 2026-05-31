@@ -13,7 +13,6 @@ async function getUserContext(authUserId) {
   return data
 }
 
-
 // GET /api/cases
 // List all cases for the user's org
 router.get('/', requireAuth, async (req, res) => {
@@ -23,7 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: cases, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, patient_ref, title, status, created_at, updated_at,
+      id, patient_ref, title, status, statement_ids, created_at, updated_at,
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )
@@ -34,7 +33,6 @@ router.get('/', requireAuth, async (req, res) => {
   if (error) throw error
   res.json({ cases })
 })
-
 
 // GET /api/cases/:id
 // Get a single case with documents and outputs
@@ -60,7 +58,6 @@ router.get('/:id', requireAuth, async (req, res) => {
   res.json({ case: caseRow })
 })
 
-
 // POST /api/cases
 // Create a new case
 // Body: { patient_ref, title, template_id? }
@@ -84,6 +81,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       patient_ref,
       title,
       template_id: template_id || null,
+      statement_ids: [],
     })
     .select()
     .single()
@@ -100,7 +98,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
   res.status(201).json({ case: caseRow })
 })
-
 
 // PATCH /api/cases/:id
 // Update case fields
@@ -128,6 +125,61 @@ router.patch('/:id', requireAuth, async (req, res) => {
 
   if (error || !caseRow) return res.status(404).json({ error: 'Case not found' })
   res.json({ case: caseRow })
+})
+
+// PATCH /api/cases/:id/statements
+// Set which past statements to use for this case
+// Body: { mode: 'all' | 'none' | 'select', statement_ids?: uuid[] }
+router.patch('/:id/statements', requireAuth, async (req, res) => {
+  const { mode, statement_ids = [] } = req.body
+
+  if (!['all', 'none', 'select'].includes(mode)) {
+    return res.status(400).json({ error: 'mode must be all, none, or select' })
+  }
+
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Case not found' })
+
+  // Verify case belongs to org
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id')
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  let resolvedIds = []
+
+  if (mode === 'all') {
+    // Fetch all ready statements for this user
+    const { data: statements } = await supabaseAdmin
+      .from('past_statements')
+      .select('id')
+      .eq('user_id', profile.id)
+      .eq('status', 'ready')
+    resolvedIds = (statements || []).map(s => s.id)
+  } else if (mode === 'select') {
+    // Validate provided IDs belong to this user
+    const { data: statements } = await supabaseAdmin
+      .from('past_statements')
+      .select('id')
+      .in('id', statement_ids)
+      .eq('user_id', profile.id)
+    resolvedIds = (statements || []).map(s => s.id)
+  }
+  // mode === 'none' → resolvedIds stays []
+
+  const { data: updated, error } = await supabaseAdmin
+    .from('cases')
+    .update({ statement_ids: resolvedIds })
+    .eq('id', req.params.id)
+    .select()
+    .single()
+
+  if (error) throw error
+  res.json({ case: updated })
 })
 
 export default router

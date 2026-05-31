@@ -84,6 +84,23 @@ router.post('/verification', requireAuth, upload.single('file'), async (req, res
 })
 
 
+// GET /api/uploads/statements
+// List all past statements uploaded by the current user
+router.get('/statements', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.json({ statements: [] })
+
+  const { data: statements, error } = await supabaseAdmin
+    .from('past_statements')
+    .select('id, file_name, status, error_message, created_at')
+    .eq('user_id', profile.id)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  res.json({ statements })
+})
+
+
 // POST /api/uploads/statement
 // Upload a past Gutachten for RAG ingestion
 // Body (multipart): file
@@ -121,10 +138,40 @@ router.post('/statement', requireAuth, upload.single('file'), async (req, res) =
   // Respond immediately — processing runs in background
   res.status(201).json({ statement })
 
-  // Fire and forget — errors are caught inside and written to DB
+  // Fire and forget
   processStatement(statement.id).catch(err =>
     console.error('[RAG] Unhandled error in processStatement:', err)
   )
+})
+
+
+// DELETE /api/uploads/statement/:id
+// Delete a past statement
+router.delete('/statement/:id', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile) return res.status(404).json({ error: 'Profile not found' })
+
+  const { data: statement } = await supabaseAdmin
+    .from('past_statements')
+    .select('id, storage_path')
+    .eq('id', req.params.id)
+    .eq('user_id', profile.id)
+    .single()
+
+  if (!statement) return res.status(404).json({ error: 'Statement not found' })
+
+  // Delete from storage
+  await supabaseAdmin.storage
+    .from('past-statements')
+    .remove([statement.storage_path])
+
+  // Delete from DB
+  await supabaseAdmin
+    .from('past_statements')
+    .delete()
+    .eq('id', statement.id)
+
+  res.json({ message: 'Statement deleted' })
 })
 
 
