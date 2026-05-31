@@ -1,11 +1,17 @@
 import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 import Tesseract from 'tesseract.js'
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 import { createCanvas } from 'canvas'
+import { fileURLToPath } from 'url'
+import { dirname, join } from 'path'
 
-// Disable worker for Node environment
-pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+// Load pdfjs in legacy mode for Node compatibility
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
+pdfjsLib.GlobalWorkerOptions.workerSrc = join(
+  __dirname, '../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
+)
 
 // Extract plain text from a file buffer based on its MIME type
 export async function extractText(buffer, mimeType, filename) {
@@ -48,16 +54,17 @@ async function extractFromScannedPdf(buffer) {
       useWorkerFetch: false,
       isEvalSupported: false,
       useSystemFonts: true,
+      disableWorker: true,
     })
     const pdfDoc = await loadingTask.promise
     const numPages = pdfDoc.numPages
     const pageTexts = []
 
-    console.log(`[OCR] Processing ${numPages} page(s) via OCR`)
+    console.log(`[OCR] Processing ${numPages} page(s) via image OCR`)
 
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
       const page = await pdfDoc.getPage(pageNum)
-      const viewport = page.getViewport({ scale: 2.0 }) // scale 2x for better OCR accuracy
+      const viewport = page.getViewport({ scale: 2.0 })
 
       const canvas = createCanvas(viewport.width, viewport.height)
       const ctx = canvas.getContext('2d')
@@ -68,6 +75,7 @@ async function extractFromScannedPdf(buffer) {
       }).promise
 
       const imageBuffer = canvas.toBuffer('image/png')
+
       const { data: { text } } = await Tesseract.recognize(imageBuffer, 'deu+eng', {
         logger: () => {},
       })
@@ -76,7 +84,7 @@ async function extractFromScannedPdf(buffer) {
         pageTexts.push(text.trim())
       }
 
-      console.log(`[OCR] Page ${pageNum}/${numPages} done`)
+      console.log(`[OCR] Page ${pageNum}/${numPages} processed`)
     }
 
     return pageTexts.join('\n\n')
