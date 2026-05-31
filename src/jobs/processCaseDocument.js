@@ -6,7 +6,6 @@ import { extractText } from '../lib/textExtraction.js'
 // 2. Extract / OCR text
 // 3. Store extracted_text back in case_documents
 // 4. Update status
-
 export async function processCaseDocument(documentId) {
   console.log(`[OCR] Starting extraction for document ${documentId}`)
 
@@ -16,7 +15,6 @@ export async function processCaseDocument(documentId) {
     .eq('id', documentId)
 
   try {
-    // Fetch the document record
     const { data: doc, error: fetchError } = await supabaseAdmin
       .from('case_documents')
       .select('id, file_name, storage_path, doc_type')
@@ -27,8 +25,6 @@ export async function processCaseDocument(documentId) {
       throw new Error(`Document not found: ${documentId}`)
     }
 
-    // Plain text own_findings uploaded as text/plain — may already have content
-    // but we still run through the extractor for consistency
     const { data: fileData, error: downloadError } = await supabaseAdmin.storage
       .from('case-documents')
       .download(doc.storage_path)
@@ -49,7 +45,6 @@ export async function processCaseDocument(documentId) {
 
     console.log(`[OCR] Extracted ${extractedText.length} characters from ${doc.file_name}`)
 
-    // Store extracted text and mark ready
     await supabaseAdmin
       .from('case_documents')
       .update({
@@ -63,10 +58,25 @@ export async function processCaseDocument(documentId) {
 
   } catch (err) {
     console.error(`[OCR] Failed to process document ${documentId}:`, err.message)
-
     await supabaseAdmin
       .from('case_documents')
       .update({ status: 'error', error_message: err.message })
       .eq('id', documentId)
   }
+}
+
+// Derive MIME type from file extension
+function getMimeTypeFromFilename(filename) {
+  const ext = filename.split('.').pop().toLowerCase()
+  const map = {
+    pdf:  'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    txt:  'text/plain',
+    jpg:  'image/jpeg',
+    jpeg: 'image/jpeg',
+    png:  'image/png',
+    tiff: 'image/tiff',
+    tif:  'image/tiff',
+  }
+  return map[ext] || 'application/octet-stream'
 }
