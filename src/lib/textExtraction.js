@@ -2,16 +2,10 @@ import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
 import Tesseract from 'tesseract.js'
 import { createCanvas } from 'canvas'
-import { fileURLToPath } from 'url'
-import { dirname, join } from 'path'
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist/legacy/build/pdf.mjs'
 
-// Load pdfjs in legacy mode for Node compatibility
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
-pdfjsLib.GlobalWorkerOptions.workerSrc = join(
-  __dirname, '../../node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs'
-)
+// Disable worker completely — run pdfjs in main thread
+GlobalWorkerOptions.workerSrc = null
 
 // Extract plain text from a file buffer based on its MIME type
 export async function extractText(buffer, mimeType, filename) {
@@ -38,7 +32,6 @@ async function extractFromPdf(buffer) {
     if (text && text.length >= 50) {
       return text
     }
-    // PDF has no selectable text — scanned document, use pdfjs + OCR
     console.log('PDF appears to be a scan — converting pages to images for OCR')
     return extractFromScannedPdf(buffer)
   } catch (err) {
@@ -49,12 +42,11 @@ async function extractFromPdf(buffer) {
 async function extractFromScannedPdf(buffer) {
   try {
     const uint8Array = new Uint8Array(buffer)
-    const loadingTask = pdfjsLib.getDocument({
+    const loadingTask = getDocument({
       data: uint8Array,
       useWorkerFetch: false,
       isEvalSupported: false,
       useSystemFonts: true,
-      disableWorker: true,
     })
     const pdfDoc = await loadingTask.promise
     const numPages = pdfDoc.numPages
@@ -65,25 +57,17 @@ async function extractFromScannedPdf(buffer) {
     for (let pageNum = 1; pageNum <= numPages; pageNum++) {
       const page = await pdfDoc.getPage(pageNum)
       const viewport = page.getViewport({ scale: 2.0 })
-
       const canvas = createCanvas(viewport.width, viewport.height)
       const ctx = canvas.getContext('2d')
 
-      await page.render({
-        canvasContext: ctx,
-        viewport,
-      }).promise
+      await page.render({ canvasContext: ctx, viewport }).promise
 
       const imageBuffer = canvas.toBuffer('image/png')
-
       const { data: { text } } = await Tesseract.recognize(imageBuffer, 'deu+eng', {
         logger: () => {},
       })
 
-      if (text?.trim()) {
-        pageTexts.push(text.trim())
-      }
-
+      if (text?.trim()) pageTexts.push(text.trim())
       console.log(`[OCR] Page ${pageNum}/${numPages} processed`)
     }
 
@@ -123,36 +107,27 @@ export function chunkText(text, chunkSize = 1000, overlap = 150) {
     .replace(/[ \t]{2,}/g, ' ')
     .trim()
 
-  if (cleaned.length <= chunkSize) {
-    return [cleaned]
-  }
+  if (cleaned.length <= chunkSize) return [cleaned]
 
   const chunks = []
   let start = 0
 
   while (start < cleaned.length) {
     let end = start + chunkSize
-
     if (end >= cleaned.length) {
       chunks.push(cleaned.slice(start).trim())
       break
     }
-
     let breakPoint = cleaned.lastIndexOf('\n\n', end)
     if (breakPoint <= start) {
       breakPoint = cleaned.lastIndexOf('. ', end)
       if (breakPoint > start) breakPoint += 1
     }
-    if (breakPoint <= start) {
-      breakPoint = cleaned.lastIndexOf(' ', end)
-    }
-    if (breakPoint <= start) {
-      breakPoint = end
-    }
+    if (breakPoint <= start) breakPoint = cleaned.lastIndexOf(' ', end)
+    if (breakPoint <= start) breakPoint = end
 
     const chunk = cleaned.slice(start, breakPoint).trim()
     if (chunk.length > 0) chunks.push(chunk)
-
     start = breakPoint - overlap
     if (start < 0) start = 0
   }
