@@ -2,6 +2,8 @@ import express from 'express'
 import multer from 'multer'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
+import { processStatement } from '../jobs/processStatement.js'
+import { processCaseDocument } from '../jobs/processCaseDocument.js'
 import { randomUUID } from 'crypto'
 
 const router = express.Router()
@@ -116,9 +118,13 @@ router.post('/statement', requireAuth, upload.single('file'), async (req, res) =
 
   if (dbError) throw dbError
 
-  // TODO Phase 2: enqueue RAG ingestion job
-
+  // Respond immediately — processing runs in background
   res.status(201).json({ statement })
+
+  // Fire and forget — errors are caught inside and written to DB
+  processStatement(statement.id).catch(err =>
+    console.error('[RAG] Unhandled error in processStatement:', err)
+  )
 })
 
 
@@ -170,9 +176,47 @@ router.post('/case-document', requireAuth, checkAccess, upload.single('file'), a
 
   if (dbError) throw dbError
 
-  // TODO Phase 2: enqueue OCR job
-
+  // Respond immediately — OCR runs in background
   res.status(201).json({ document: doc })
+
+  // Fire and forget
+  processCaseDocument(doc.id).catch(err =>
+    console.error('[OCR] Unhandled error in processCaseDocument:', err)
+  )
+})
+
+
+// GET /api/uploads/statement/:id/status
+// Poll processing status of a past statement
+router.get('/statement/:id/status', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+
+  const { data } = await supabaseAdmin
+    .from('past_statements')
+    .select('id, status, error_message')
+    .eq('id', req.params.id)
+    .eq('org_id', profile?.org_id)
+    .single()
+
+  if (!data) return res.status(404).json({ error: 'Statement not found' })
+  res.json(data)
+})
+
+
+// GET /api/uploads/case-document/:id/status
+// Poll processing status of a case document
+router.get('/case-document/:id/status', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+
+  const { data } = await supabaseAdmin
+    .from('case_documents')
+    .select('id, status, error_message, extracted_text')
+    .eq('id', req.params.id)
+    .eq('org_id', profile?.org_id)
+    .single()
+
+  if (!data) return res.status(404).json({ error: 'Document not found' })
+  res.json(data)
 })
 
 export default router
