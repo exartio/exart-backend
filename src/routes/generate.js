@@ -18,13 +18,6 @@ async function getUserContext(authUserId) {
 
 
 // POST /api/generate
-// Main generation endpoint — produces a Betreuungsgutachten draft
-// Body: {
-//   case_id: uuid,
-//   own_findings?: string,     -- free text findings entered directly
-//   template_id?: uuid,        -- override case template
-//   use_own_style?: boolean,   -- whether to use RAG chunks (default true)
-// }
 router.post('/', requireAuth, checkAccess, async (req, res) => {
   const { case_id, own_findings = '', template_id, use_own_style = true } = req.body
 
@@ -35,11 +28,12 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
   const isDemo = req.accessLevel !== 'full'
 
-  // ── 1. Load case ──────────────────────────────────────────
+  // ── 1. Load case — now including beweisfragen ─────────────
   const { data: caseRow, error: caseError } = await supabaseAdmin
     .from('cases')
     .select(`
       id, patient_ref, title, template_id,
+      beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
       case_documents ( id, file_name, doc_type, status, extracted_text ),
       templates ( id, name, content_json )
     `)
@@ -51,7 +45,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     return res.status(404).json({ error: 'Case not found' })
   }
 
-  // ── 2. Load template (override or case default) ───────────
+  // ── 2. Load template ──────────────────────────────────────
   let template = caseRow.templates
   if (template_id && template_id !== caseRow.template_id) {
     const { data: overrideTemplate } = await supabaseAdmin
@@ -62,7 +56,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     if (overrideTemplate) template = overrideTemplate
   }
 
-  // ── 3. Check all case documents are processed ─────────────
+  // ── 3. Check all documents are processed ─────────────────
   const pendingDocs = caseRow.case_documents.filter(
     d => d.status === 'pending' || d.status === 'processing'
   )
@@ -74,11 +68,10 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     })
   }
 
-  // ── 4. Retrieve RAG chunks (own style) ────────────────────
+  // ── 4. Retrieve RAG chunks ────────────────────────────────
   let retrievedChunks = []
   if (use_own_style && !isDemo) {
     try {
-      // Use case title + first doc content as query for retrieval
       const queryText = [
         caseRow.title,
         caseRow.case_documents
@@ -90,12 +83,11 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       retrievedChunks = await retrieveRelevantChunks(profile.org_id, queryText, 8)
       console.log(`[GEN] Retrieved ${retrievedChunks.length} relevant chunks for case ${case_id}`)
     } catch (err) {
-      // RAG retrieval failure is non-fatal — proceed without style reference
       console.warn('[GEN] RAG retrieval failed, proceeding without style chunks:', err.message)
     }
   }
 
-  // ── 5. Build prompt ───────────────────────────────────────
+  // ── 5. Build prompt — now with beweisfragen ───────────────
   const systemPrompt = buildSystemPrompt()
   const userPrompt = buildUserPrompt({
     caseDocuments: caseRow.case_documents,
@@ -103,6 +95,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     retrievedChunks,
     template,
     patientRef: caseRow.patient_ref,
+    beweisfragen: caseRow.beweisfragen || [],
     isDemo,
   })
 
@@ -115,12 +108,11 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   const version = (count || 0) + 1
 
   // ── 7. Call Claude ────────────────────────────────────────
-  console.log(`[GEN] Calling Claude for case ${case_id} (version ${version}, demo: ${isDemo})`)
+  console.log(`[GEN] Calling Claude for case ${case_id} (version ${version}, demo: ${isDemo}, beweisfragen: ${caseRow.beweisfragen?.length || 0})`)
 
   let generatedText = ''
 
   try {
-    // Set up SSE streaming to the client
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
@@ -133,7 +125,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       messages: [{ role: 'user', content: userPrompt }],
     })
 
-    // Stream tokens to client as SSE events
     stream.on('text', (text) => {
       generatedText += text
       res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`)
@@ -141,7 +132,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
     await stream.finalMessage()
 
-    // ── 8. Save output to DB ──────────────────────────────
     const { data: output, error: outputError } = await supabaseAdmin
       .from('generated_outputs')
       .insert({
@@ -157,6 +147,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
           user: userPrompt,
           retrieved_chunks: retrievedChunks.length,
           template_id: template?.id || null,
+          beweisfragen_count: caseRow.beweisfragen?.length || 0,
         },
       })
       .select('id, version, is_demo, created_at')
@@ -164,7 +155,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
     if (outputError) throw outputError
 
-    // Update case status
     await supabaseAdmin
       .from('cases')
       .update({ status: isDemo ? 'draft' : 'in_progress' })
@@ -179,7 +169,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       metadata: { version, retrieved_chunks: retrievedChunks.length },
     })
 
-    // Send final event with output metadata
     res.write(`data: ${JSON.stringify({ type: 'done', output })}\n\n`)
     res.end()
 
@@ -197,7 +186,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
 
 // GET /api/generate/output/:id
-// Retrieve a previously generated output
 router.get('/output/:id', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
@@ -219,8 +207,6 @@ router.get('/output/:id', requireAuth, async (req, res) => {
 
 
 // PATCH /api/generate/output/:id
-// Save edits made in the side-by-side rich text editor
-// Body: { content_json }
 router.patch('/output/:id', requireAuth, async (req, res) => {
   const { content_json } = req.body
   if (!content_json) return res.status(400).json({ error: 'content_json is required' })
@@ -237,13 +223,11 @@ router.patch('/output/:id', requireAuth, async (req, res) => {
     .single()
 
   if (error || !output) return res.status(404).json({ error: 'Output not found' })
-
   res.json({ output })
 })
 
 
 // GET /api/generate/case/:caseId/outputs
-// List all generated outputs for a case (version history)
 router.get('/case/:caseId/outputs', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.json({ outputs: [] })

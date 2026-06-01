@@ -272,3 +272,54 @@ router.get('/case-document/:id/status', requireAuth, async (req, res) => {
 })
 
 export default router
+
+
+// POST /api/uploads/court-order
+// Upload the Gerichtsbeschluss for a case
+// Body (multipart): file, case_id
+import { processCourtOrder } from '../jobs/processCourtOrder.js'
+
+router.post('/court-order', requireAuth, upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file provided' })
+
+  const { case_id } = req.body
+  if (!case_id) return res.status(400).json({ error: 'case_id is required' })
+
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(400).json({ error: 'User has no organisation' })
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id, org_id')
+    .eq('id', case_id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  const ext = req.file.originalname.split('.').pop()
+  const storagePath = `${profile.org_id}/${case_id}/gerichtsbeschluss_${randomUUID()}.${ext}`
+
+  const { error: storageError } = await supabaseAdmin.storage
+    .from('case-documents')
+    .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype })
+
+  if (storageError) throw storageError
+
+  await supabaseAdmin
+    .from('cases')
+    .update({
+      gerichtsbeschluss_storage_path: storagePath,
+      gerichtsbeschluss_status: 'pending',
+      beweisfragen: [],
+      beweisfragen_raw_text: null,
+    })
+    .eq('id', case_id)
+
+  res.status(201).json({ message: 'Court order uploaded, extraction starting' })
+
+  // Fire and forget
+  processCourtOrder(case_id).catch(err =>
+    console.error('[COURT] Unhandled error:', err)
+  )
+})

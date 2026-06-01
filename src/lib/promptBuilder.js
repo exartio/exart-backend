@@ -17,9 +17,10 @@ Ein Betreuungsgutachten nach BGB muss folgende Abschnitte enthalten:
 5. **Untersuchungsbefund** — Körperlicher Befund, psychischer Befund, neuropsychologischer Befund
 6. **Diagnose** — ICD-10/ICD-11 Diagnosen mit Codes
 7. **Beurteilung der Betreuungsbedürftigkeit** — Begründung bezogen auf konkrete Lebensbereiche
-8. **Empfohlene Betreuungsbereiche** — Spezifische Aufgabenkreise nach § 1815 BGB
-9. **Erforderlichkeit und Verhältnismäßigkeit** — Abwägung anderer Hilfen
-10. **Zusammenfassung und Empfehlung** — Klare Schlussempfehlung ans Gericht
+8. **Beweisfragen** — Sofern vom Gericht Beweisfragen gestellt wurden, sind diese hier einzeln und vollständig zu beantworten
+9. **Empfohlene Betreuungsbereiche** — Spezifische Aufgabenkreise nach § 1815 BGB
+10. **Erforderlichkeit und Verhältnismäßigkeit** — Abwägung anderer Hilfen
+11. **Zusammenfassung und Empfehlung** — Klare Schlussempfehlung ans Gericht
 
 ## Stilrichtlinien
 
@@ -36,6 +37,7 @@ Ein Betreuungsgutachten nach BGB muss folgende Abschnitte enthalten:
 - Der Grundsatz der Verhältnismäßigkeit muss beachtet werden (§ 1815 Abs. 1 BGB)
 - Formuliere keine Diagnosen ohne ausreichende Befundgrundlage
 - Weise explizit auf Lücken in der Informationsgrundlage hin
+- Beweisfragen des Gerichts sind einzeln, vollständig und direkt zu beantworten
 
 Antworte ausschließlich mit dem Gutachten-Text in strukturiertem Format. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`
 }
@@ -46,11 +48,12 @@ export function buildUserPrompt({
   retrievedChunks,
   template,
   patientRef,
+  beweisfragen,
   isDemo,
 }) {
   const sections = []
 
-  // Demo mode — generate a realistic but clearly placeholder output
+  // Demo mode
   if (isDemo) {
     return `Erstelle eine Demo-Vorschau eines Betreuungsgutachtens für Demonstrationszwecke.
 Verwende den Patientenreferenzcode: ${patientRef}
@@ -90,7 +93,7 @@ Die folgenden Textausschnitte stammen aus früheren Gutachten dieses Gutachters.
 ${chunksText}`)
   }
 
-  // Case documents — medical records, lab reports, court orders
+  // Case documents
   if (caseDocuments?.length > 0) {
     const docsText = caseDocuments
       .filter(d => d.status === 'ready' && d.extracted_text)
@@ -104,17 +107,33 @@ ${docsText}`)
     }
   }
 
-  // Own findings — doctor's own notes entered as plain text
+  // Own findings
   if (ownFindings?.trim()) {
     sections.push(`# Eigene Untersuchungsbefunde des Gutachters
 
 ${ownFindings}`)
   }
 
+  // Beweisfragen — court expert questions
+  if (beweisfragen?.length > 0) {
+    const fragenText = beweisfragen
+      .map((f, i) => `${i + 1}. ${f}`)
+      .join('\n')
+
+    sections.push(`# Beweisfragen des Gerichts
+
+Das Gericht hat folgende Beweisfragen gestellt, die im Gutachten unter dem Kapitel "Beweisfragen" einzeln und vollständig zu beantworten sind:
+
+${fragenText}
+
+WICHTIG: Beantworte jede dieser Fragen explizit, vollständig und in der gleichen Reihenfolge unter dem Kapitel "VIII. Beweisfragen". Leite jede Antwort mit der Frage ein.`)
+  }
+
   sections.push(`# Aufgabe
 
 Erstelle jetzt das vollständige Betreuungsgutachten basierend auf allen oben bereitgestellten Informationen.
 Halte dich an die vorgegebene Struktur und den beschriebenen Stil.
+${beweisfragen?.length > 0 ? 'Beantworte alle Beweisfragen des Gerichts einzeln und vollständig unter Kapitel VIII.' : ''}
 Weise auf fehlende Informationen hin, sofern sie für ein vollständiges Gutachten notwendig wären.`)
 
   return sections.join('\n\n---\n\n')
