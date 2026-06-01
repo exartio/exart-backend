@@ -4,6 +4,7 @@ import { anthropic, GENERATION_MODEL } from '../lib/anthropicClient.js'
 import { buildSystemPrompt, buildUserPrompt } from '../lib/promptBuilder.js'
 import { retrieveRelevantChunks } from '../jobs/processStatement.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
+import { checkGenerationQuota, incrementGenerationQuota } from '../routes/subscriptions.js'
 
 const router = express.Router()
 
@@ -27,6 +28,18 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   if (!profile?.org_id) return res.status(400).json({ error: 'User has no organisation' })
 
   const isDemo = req.accessLevel !== 'full'
+
+
+  // ── Quota check ───────────────────────────────────────────
+  const quota = await checkGenerationQuota(profile.org_id)
+  if (!quota.allowed && !isDemo) {
+    return res.status(402).json({
+      error: 'Generation quota exceeded',
+      reason: quota.reason,
+      used: quota.used,
+      limit: quota.limit,
+    })
+  }
 
   // ── 1. Load case — now including beweisfragen ─────────────
   const { data: caseRow, error: caseError } = await supabaseAdmin
