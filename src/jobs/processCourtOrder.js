@@ -43,9 +43,10 @@ export async function processCourtOrder(caseId) {
     console.log(`[COURT] Extracting text from court order`)
     const rawText = await extractText(buffer, mimeType, `gerichtsbeschluss.${ext}`)
 
-    if (!rawText || rawText.length < 50) {
-      throw new Error('Could not extract text from court order — file may be unreadable')
-    }
+    console.log(`[COURT] Raw text length: ${rawText?.length || 0}`)
+if (!rawText || rawText.length < 10) {
+  throw new Error('Could not extract text from court order — file may be unreadable')
+}
 
     console.log(`[COURT] Extracted ${rawText.length} chars, extracting Beweisfragen with Claude`)
 
