@@ -5,14 +5,28 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
 })
 
 export const PLANS = {
-  starter: {
-    priceId: process.env.STRIPE_STARTER_PRICE_ID,
+  solo: {
+    priceId: process.env.STRIPE_SOLO_PRICE_ID,
     verifiedSeatLimit: 1,
-    label: 'Starter',
+    label: 'Solo-Lizenz',
+    amount: 14900, // €149/month in cents
+    interval: 'month',
+    type: 'recurring',
   },
-  pro: {
-    priceId: process.env.STRIPE_PRO_PRICE_ID,
+  expert: {
+    priceId: process.env.STRIPE_EXPERT_PRICE_ID,
     verifiedSeatLimit: 5,
-    label: 'Pro',
+    label: 'Expert-Lizenz',
+    amount: 34900, // €349/month in cents
+    interval: 'month',
+    type: 'recurring',
+  },
+  einzelgutachten: {
+    priceId: process.env.STRIPE_EINZELGUTACHTEN_PRICE_ID,
+    verifiedSeatLimit: 1,
+    label: 'Einzelgutachten',
+    amount: 5900, // €59 one-time in cents
+    interval: null,
+    type: 'one_time',
   },
 }

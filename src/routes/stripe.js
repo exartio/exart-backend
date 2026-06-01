@@ -7,7 +7,7 @@ const router = express.Router()
 
 // POST /api/stripe/checkout
 // Creates a Stripe Checkout session for the user's org
-// Body: { plan: 'starter' | 'pro' }
+// Body: { plan: 'solo' | 'expert' | 'einzelgutachten' }
 router.post('/checkout', requireAuth, async (req, res) => {
   const { plan } = req.body
 
@@ -47,12 +47,15 @@ router.post('/checkout', requireAuth, async (req, res) => {
       .eq('org_id', member.org_id)
   }
 
+  const planConfig = PLANS[plan]
+  const isOneTime = planConfig.type === 'one_time'
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
-    line_items: [{ price: PLANS[plan].priceId, quantity: 1 }],
-    mode: 'subscription',
+    line_items: [{ price: planConfig.priceId, quantity: 1 }],
+    mode: isOneTime ? 'payment' : 'subscription',
     success_url: `${process.env.FRONTEND_URL}/dashboard?subscribed=true`,
-    cancel_url: `${process.env.FRONTEND_URL}/pricing`,
+    cancel_url: `${process.env.FRONTEND_URL}/#preise`,
     metadata: { supabase_org_id: member.org_id, plan },
   })
 
@@ -83,7 +86,7 @@ router.post('/portal', requireAuth, async (req, res) => {
 
   const portalSession = await stripe.billingPortal.sessions.create({
     customer: sub.stripe_customer_id,
-    return_url: `${process.env.FRONTEND_URL}/dashboard/billing`,
+    return_url: `${process.env.FRONTEND_URL}/dashboard-settings`,
   })
 
   res.json({ url: portalSession.url })
@@ -123,27 +126,41 @@ router.post(
 async function handleStripeEvent(event) {
   switch (event.type) {
 
+    // Recurring subscription activated
     case 'checkout.session.completed': {
       const session = event.data.object
       const orgId = session.metadata?.supabase_org_id
       const plan = session.metadata?.plan
       if (!orgId) break
 
-      const subscription = await stripe.subscriptions.retrieve(session.subscription)
-
-      await supabaseAdmin
-        .from('subscriptions')
-        .update({
-          stripe_subscription_id: subscription.id,
-          stripe_customer_id: session.customer,
-          plan: plan || 'starter',
-          status: subscription.status,
-          verified_seat_limit: PLANS[plan]?.verifiedSeatLimit || 1,
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-        })
-        .eq('org_id', orgId)
-
-      await auditLog(orgId, null, 'subscription.activated', 'subscriptions', null, { plan })
+      if (session.mode === 'subscription') {
+        const subscription = await stripe.subscriptions.retrieve(session.subscription)
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            stripe_subscription_id: subscription.id,
+            stripe_customer_id: session.customer,
+            plan: plan || 'solo',
+            status: subscription.status,
+            verified_seat_limit: PLANS[plan]?.verifiedSeatLimit || 1,
+            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+          })
+          .eq('org_id', orgId)
+        await auditLog(orgId, null, 'subscription.activated', 'subscriptions', null, { plan })
+      } else if (session.mode === 'payment') {
+        // One-time Einzelgutachten purchase
+        await supabaseAdmin
+          .from('subscriptions')
+          .update({
+            stripe_customer_id: session.customer,
+            plan: plan || 'einzelgutachten',
+            status: 'active',
+            verified_seat_limit: 1,
+            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days access
+          })
+          .eq('org_id', orgId)
+        await auditLog(orgId, null, 'subscription.einzelgutachten', 'subscriptions', null, { plan })
+      }
       break
     }
 
