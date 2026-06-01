@@ -47,7 +47,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     .select(`
       id, patient_ref, title, template_id,
       beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
-      case_documents ( id, file_name, doc_type, status, extracted_text ),
+      case_documents ( id, file_name, doc_type, status, extracted_text, ignored ),
       templates ( id, name, content_json )
     `)
     .eq('id', case_id)

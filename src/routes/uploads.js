@@ -271,6 +271,62 @@ router.get('/case-document/:id/status', requireAuth, async (req, res) => {
   res.json(data)
 })
 
+
+// PATCH /api/uploads/case-document/:id/ignore
+// Toggle ignored status on a case document
+// Body: { ignored: boolean }
+router.patch('/case-document/:id/ignore', requireAuth, async (req, res) => {
+  const { ignored } = req.body
+  if (typeof ignored !== 'boolean') return res.status(400).json({ error: 'ignored must be boolean' })
+
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
+
+  const { data: doc, error } = await supabaseAdmin
+    .from('case_documents')
+    .update({ ignored })
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .select('id, ignored')
+    .single()
+
+  if (error || !doc) return res.status(404).json({ error: 'Document not found' })
+  res.json({ document: doc })
+})
+
+
+// DELETE /api/uploads/case-document/:id
+// Delete a case document from storage and DB
+router.delete('/case-document/:id', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
+
+  const { data: doc } = await supabaseAdmin
+    .from('case_documents')
+    .select('id, storage_path')
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!doc) return res.status(404).json({ error: 'Document not found' })
+
+  // Delete from storage
+  if (doc.storage_path) {
+    await supabaseAdmin.storage
+      .from('case-documents')
+      .remove([doc.storage_path])
+  }
+
+  // Delete from DB
+  await supabaseAdmin
+    .from('case_documents')
+    .delete()
+    .eq('id', doc.id)
+
+  res.json({ message: 'Document deleted' })
+})
+
+
 export default router
 
 

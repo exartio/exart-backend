@@ -112,7 +112,7 @@ ${chunksText}`)
   // Case documents
   if (caseDocuments?.length > 0) {
     const docsText = caseDocuments
-      .filter(d => d.status === 'ready' && d.extracted_text)
+      .filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
       .map(d => `### ${docTypeLabel(d.doc_type)}: ${d.file_name}\n\n${d.extracted_text}`)
       .join('\n\n---\n\n')
 
