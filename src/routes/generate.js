@@ -4,7 +4,7 @@ import { anthropic, GENERATION_MODEL } from '../lib/anthropicClient.js'
 import { buildSystemPrompt, buildUserPrompt } from '../lib/promptBuilder.js'
 import { retrieveRelevantChunks } from '../jobs/processStatement.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
-import { checkGenerationQuota, incrementGenerationQuota } from '../routes/subscriptions.js'
+import { checkGenerationQuota, incrementGenerationQuota } from '../lib/quotaService.js'
 
 const router = express.Router()
 
