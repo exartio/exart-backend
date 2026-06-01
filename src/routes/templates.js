@@ -74,7 +74,7 @@ router.post('/upload', requireAuth, upload.single('file'), async (req, res) => {
       owner_id:    profile.id,
       name:        name.trim(),
       description: description?.trim() || null,
-      type:        'custom',
+      type:        'betreuungsgutachten',
       storage_path: storagePath,
       status:      'pending',
     })
