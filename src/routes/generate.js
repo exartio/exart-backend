@@ -20,7 +20,7 @@ async function getUserContext(authUserId) {
 
 // POST /api/generate
 router.post('/', requireAuth, checkAccess, async (req, res) => {
-  const { case_id, own_findings = '', template_id, use_own_style = true } = req.body
+  const { case_id, own_findings = [], template_id, use_own_style = true } = req.body
 
   if (!case_id) return res.status(400).json({ error: 'case_id is required' })
 

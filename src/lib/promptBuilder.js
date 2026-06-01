@@ -123,11 +123,36 @@ ${docsText}`)
     }
   }
 
-  // Own findings
-  if (ownFindings?.trim()) {
-    sections.push(`# Eigene Untersuchungsbefunde des Gutachters
+  // Own findings — structured by type
+  if (ownFindings) {
+    const findingsTypeLabels = {
+      exploration:  'Exploration',
+      untersuchung: 'Untersuchung',
+      amdp:         'AMDP-Befund',
+      anamnese:     'Fremd-/Anamnese',
+      sonstig:      'Sonstiger Befund',
+    }
 
-${ownFindings}`)
+    // Accept both legacy plain string and new structured array
+    let findingsText = ''
+    if (Array.isArray(ownFindings) && ownFindings.length > 0) {
+      findingsText = ownFindings
+        .map(f => `### ${findingsTypeLabels[f.type] || f.type}
+${f.text}`)
+        .join('
+
+')
+    } else if (typeof ownFindings === 'string' && ownFindings.trim()) {
+      findingsText = ownFindings.trim()
+    }
+
+    if (findingsText) {
+      sections.push(`# Eigene Untersuchungsbefunde des Gutachters
+
+Die folgenden Befunde wurden vom Gutachter persönlich erhoben und sind gegliedert nach Befundtyp. Übernehme diese Befunde wortgetreu in die entsprechenden Kapitel des Gutachtens:
+
+${findingsText}`)
+    }
   }
 
   // Beweisfragen — court expert questions
