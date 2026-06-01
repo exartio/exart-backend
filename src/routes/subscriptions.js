@@ -40,9 +40,11 @@ router.get('/me', requireAuth, async (req, res) => {
 
   // Build quota info
   const planConfig = PLAN_LIMITS[sub.plan] || PLAN_LIMITS.none
+  const addonUnits = sub.addon_unit_count || 0
   let quota = null
   if (planConfig.type === 'monthly') {
-    quota = { type: 'monthly', used: sub.monthly_count || 0, limit: planConfig.limit }
+    const effectiveLimit = planConfig.limit + addonUnits
+    quota = { type: 'monthly', used: sub.monthly_count || 0, limit: effectiveLimit, base_limit: planConfig.limit, addon_units: addonUnits }
   } else if (planConfig.type === 'total') {
     quota = { type: 'total', used: sub.gutachten_count || 0, limit: planConfig.limit }
   } else if (planConfig.type === 'unlimited') {
