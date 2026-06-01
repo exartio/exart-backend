@@ -1,10 +1,8 @@
 import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
-import Tesseract from 'tesseract.js'
-import { createCanvas } from 'canvas'
-import { pdfToPng } from 'pdf-to-png-converter'
 
 // Extract plain text from a file buffer based on its MIME type
+// Note: scanned PDFs and images are now handled by Claude Vision in the job files
 export async function extractText(buffer, mimeType, filename) {
   switch (mimeType) {
     case 'application/pdf':
@@ -12,11 +10,7 @@ export async function extractText(buffer, mimeType, filename) {
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
       return extractFromDocx(buffer)
     case 'text/plain':
-      return buffer.toString('utf-8')
-    case 'image/jpeg':
-    case 'image/png':
-    case 'image/tiff':
-      return extractFromImage(buffer)
+      return buffer.toString('utf-8').trim()
     default:
       throw new Error(`Unsupported file type for text extraction: ${mimeType}`)
   }
@@ -25,39 +19,9 @@ export async function extractText(buffer, mimeType, filename) {
 async function extractFromPdf(buffer) {
   try {
     const data = await pdf(buffer)
-    const text = data.text?.trim()
-    if (text && text.length >= 50) {
-      return text
-    }
-    console.log('PDF appears to be a scan — converting pages to images for OCR')
-    return extractFromScannedPdf(buffer)
+    return data.text?.trim() || ''
   } catch (err) {
     throw new Error(`PDF extraction failed: ${err.message}`)
-  }
-}
-
-async function extractFromScannedPdf(buffer) {
-  try {
-    const pages = await pdfToPng(buffer, {
-      disableFontFace: true,
-      useSystemFonts: true,
-      viewportScale: 2.0,
-    })
-
-    console.log(`[OCR] Processing ${pages.length} page(s) via image OCR`)
-
-    const pageTexts = []
-    for (let i = 0; i < pages.length; i++) {
-      const { data: { text } } = await Tesseract.recognize(pages[i].content, 'deu+eng', {
-        logger: () => {},
-      })
-      if (text?.trim()) pageTexts.push(text.trim())
-      console.log(`[OCR] Page ${i + 1}/${pages.length} processed`)
-    }
-
-    return pageTexts.join('\n\n')
-  } catch (err) {
-    throw new Error(`Scanned PDF OCR failed: ${err.message}`)
   }
 }
 
@@ -67,17 +31,6 @@ async function extractFromDocx(buffer) {
     return result.value?.trim() || ''
   } catch (err) {
     throw new Error(`DOCX extraction failed: ${err.message}`)
-  }
-}
-
-async function extractFromImage(buffer) {
-  try {
-    const { data: { text } } = await Tesseract.recognize(buffer, 'deu+eng', {
-      logger: () => {},
-    })
-    return text?.trim() || ''
-  } catch (err) {
-    throw new Error(`OCR failed: ${err.message}`)
   }
 }
 
