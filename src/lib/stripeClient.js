@@ -21,7 +21,7 @@ export const PLANS = {
     interval: 'month',
     type: 'recurring',
   },
-  einzelgutachten: {
+  unit: {
     priceId: process.env.STRIPE_EINZELGUTACHTEN_PRICE_ID,
     verifiedSeatLimit: 1,
     label: 'Einzelgutachten',
