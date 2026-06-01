@@ -66,17 +66,33 @@ Der Nutzer soll die Funktionalität des Systems verstehen können, ohne echte Da
 
 Erstelle ein vollständiges Betreuungsgutachten für den Patienten mit Referenzcode: **${patientRef}**`)
 
-  // Template structure
-  if (template?.content_json) {
-    const templateText = typeof template.content_json === 'string'
-      ? template.content_json
-      : JSON.stringify(template.content_json, null, 2)
+  // Template structure — hybrid: JSON structure + raw text reference
+  if (template?.content_json || template?.raw_text) {
+    const struct = template.content_json || {}
+    const parts  = []
 
-    sections.push(`# Vorlage / Gliederung
+    if (struct.chapters?.length > 0) {
+      parts.push(`## Kapitelreihenfolge\n${struct.chapters.map((c, i) => `${i + 1}. ${c}`).join('\n')}`)
+    }
+    if (struct.intro) {
+      parts.push(`## Standardeinleitung\n${struct.intro}`)
+    }
+    if (struct.closing) {
+      parts.push(`## Schlussformel / Autorenschaft\n${struct.closing}`)
+    }
+    if (struct.style_notes) {
+      parts.push(`## Stilhinweise\n${struct.style_notes}`)
+    }
+    if (template.raw_text && parts.length === 0) {
+      parts.push(`## Vorlagentext\n${template.raw_text.slice(0, 3000)}`)
+    }
+    if (parts.length > 0) {
+      sections.push(`# Gutachten-Vorlage: ${template.name || 'Standard'}
 
-Nutze folgende Vorlage als Grundstruktur:
+Verwende diese Vorlage als verbindliche Grundstruktur. Halte die Kapitelreihenfolge ein und übernehme Einleitungs- und Schlussformulierungen wortgetreu.
 
-${templateText}`)
+${parts.join('\n\n')}`)
+    }
   }
 
   // RAG chunks — own writing style reference
