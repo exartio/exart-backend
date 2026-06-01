@@ -6,14 +6,11 @@ export async function requireAuth(req, res, next) {
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Missing authorization header' })
   }
-
   const token = authHeader.replace('Bearer ', '')
   const { data: { user }, error } = await supabase.auth.getUser(token)
-
   if (error || !user) {
     return res.status(401).json({ error: 'Invalid or expired token' })
   }
-
   req.user = user
   req.token = token
   next()
@@ -24,11 +21,10 @@ export async function requireAuth(req, res, next) {
 export async function checkAccess(req, res, next) {
   const { data, error } = await supabaseAdmin
     .rpc('check_org_access', { p_user_id: req.user.id })
-
+  console.log(`[ACCESS] user=${req.user.id} accessLevel=${data} error=${error?.message}`)
   if (error) {
     return res.status(500).json({ error: 'Failed to check access level' })
   }
-
   req.accessLevel = data
   next()
 }
@@ -37,6 +33,7 @@ export async function checkAccess(req, res, next) {
 // Use on all AI processing routes
 export function requireFullAccess(req, res, next) {
   if (req.accessLevel !== 'full') {
+    console.log(`[ACCESS] requireFullAccess blocked: accessLevel=${req.accessLevel}`)
     return res.status(403).json({
       error: 'Full access required',
       reason: req.accessLevel === 'demo'
