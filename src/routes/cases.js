@@ -22,7 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: cases, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, patient_ref, title, status, statement_ids, created_at, updated_at,
+      id, patient_ref, title, status, statement_ids, beweisfragen, created_at, updated_at,
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )
@@ -106,7 +106,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.status(404).json({ error: 'Case not found' })
 
-  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref']
+  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref', 'beweisfragen']
   const updates = Object.fromEntries(
     Object.entries(req.body).filter(([k]) => allowed.includes(k))
   )
