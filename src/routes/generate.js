@@ -187,6 +187,13 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
     console.log(`[GEN] Completed generation for case ${case_id}, output ${output.id}`)
 
+    // Increment quota counter after successful generation
+    if (!isDemo) {
+      incrementGenerationQuota(profile.org_id).catch(err =>
+        console.error('[QUOTA] Increment failed:', err.message)
+      )
+    }
+
   } catch (err) {
     console.error('[GEN] Generation failed:', err.message)
     if (!res.headersSent) {
