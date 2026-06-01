@@ -1,14 +1,12 @@
 import { supabaseAdmin } from '../lib/supabase.js'
 import { anthropic, GENERATION_MODEL } from '../lib/anthropicClient.js'
-import { pdfToPng } from 'pdf-to-png-converter'
 import pdf from 'pdf-parse'
 
 // Process a court order (Gerichtsbeschluss):
 // 1. Download from storage
-// 2. Try text extraction first (pdf-parse)
-// 3. If scanned, convert to images and send to Claude Vision
-// 4. Use Claude to extract Beweisfragen
-// 5. Store questions + raw text back in cases table
+// 2. Send PDF directly to Claude as a document (native PDF support)
+// 3. Extract Beweisfragen
+// 4. Store questions back in cases table
 
 export async function processCourtOrder(caseId) {
   console.log(`[COURT] Starting extraction for case ${caseId}`)
@@ -38,64 +36,38 @@ export async function processCourtOrder(caseId) {
     }
 
     const buffer = Buffer.from(await fileData.arrayBuffer())
+    const base64Pdf = buffer.toString('base64')
 
-    // Try text extraction first
-    let rawText = ''
-    try {
-      const pdfData = await pdf(buffer)
-      rawText = pdfData.text?.trim() || ''
-      console.log(`[COURT] pdf-parse extracted ${rawText.length} chars`)
-    } catch {}
+    console.log(`[COURT] Sending PDF to Claude (${buffer.length} bytes)`)
 
-    let messageContent = []
-
-    if (rawText.length >= 100) {
-      console.log(`[COURT] Using extracted text for Claude`)
-      messageContent = [{
-        type: 'text',
-        text: `Analysiere diesen deutschen Gerichtsbeschluss und extrahiere die Beweisfragen:\n\n${rawText.slice(0, 8000)}`
-      }]
-    } else {
-      console.log(`[COURT] Scanned PDF — converting to images for Claude Vision`)
-
-      const pages = await pdfToPng(buffer, {
-        disableFontFace: true,
-        useSystemFonts: true,
-        viewportScale: 2.5,
-      })
-
-      console.log(`[COURT] Converted ${pages.length} pages to images`)
-
-      messageContent = [
-        {
-          type: 'text',
-          text: 'Analysiere diese Seiten eines deutschen Gerichtsbeschlusses zur Einholung eines psychiatrischen Betreuungsgutachtens.'
-        },
-        ...pages.map(page => ({
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: 'image/png',
-            data: page.content.toString('base64'),
-          }
-        })),
-        {
-          type: 'text',
-          text: `Extrahiere aus den Seiten alle Beweisfragen / Gutachterfragen, die das Gericht an den Sachverständigen stellt.
-
-Gib die Fragen als JSON-Array von Strings zurück. Jede Frage als eigenständiger String, vollständig ausformuliert.
-Wenn keine expliziten Fragen formuliert sind, leite die impliziten Begutachtungsaufgaben ab.
-Antworte NUR mit dem JSON-Array, ohne weitere Erklärungen, ohne Markdown-Backticks.
-
-Beispiel: ["Liegt bei dem Betroffenen eine Krankheit vor?", "Welche Angelegenheiten kann der Betroffene nicht selbst besorgen?"]`
-        }
-      ]
-    }
-
+    // Send PDF natively to Claude — works for both text and scanned PDFs
     const message = await anthropic.messages.create({
       model: GENERATION_MODEL,
       max_tokens: 2000,
-      messages: [{ role: 'user', content: messageContent }]
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'document',
+            source: {
+              type: 'base64',
+              media_type: 'application/pdf',
+              data: base64Pdf,
+            }
+          },
+          {
+            type: 'text',
+            text: `Analysiere diesen deutschen Gerichtsbeschluss zur Einholung eines psychiatrischen Betreuungsgutachtens.
+
+Extrahiere alle Beweisfragen / Gutachterfragen, die das Gericht an den Sachverständigen stellt — üblicherweise als nummerierte oder alphabetisch geordnete Liste.
+
+Gib die Fragen als JSON-Array von Strings zurück. Jede Frage vollständig und wortgetreu aus dem Dokument übernommen.
+Antworte NUR mit dem JSON-Array, ohne Erklärungen, ohne Markdown-Backticks.
+
+Beispiel: ["Liegt bei dem Betroffenen eine Krankheit vor?", "Welche Angelegenheiten kann der Betroffene nicht selbst besorgen?"]`
+          }
+        ]
+      }]
     })
 
     let beweisfragen = []
@@ -110,13 +82,14 @@ Beispiel: ["Liegt bei dem Betroffenen eine Krankheit vor?", "Welche Angelegenhei
     }
 
     console.log(`[COURT] Extracted ${beweisfragen.length} Beweisfragen`)
+    beweisfragen.forEach((f, i) => console.log(`[COURT] ${i+1}. ${f}`))
 
     await supabaseAdmin
       .from('cases')
       .update({
         gerichtsbeschluss_status: 'ready',
         beweisfragen,
-        beweisfragen_raw_text: rawText || '[extracted via vision]',
+        beweisfragen_raw_text: '[extracted via Claude PDF vision]',
       })
       .eq('id', caseId)
 

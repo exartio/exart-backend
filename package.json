@@ -11,7 +11,6 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@supabase/supabase-js": "^2.45.0",
-    "canvas": "^3.2.3",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
     "dotenv": "^16.4.0",
@@ -20,12 +19,9 @@
     "multer": "^1.4.5-lts.1",
     "openai": "^4.52.0",
     "pdf-parse": "^1.1.1",
-    "pdf-to-png-converter": "^4.0.0",
     "pdf2pic": "^3.2.0",
-    "pdfjs-dist": "^6.0.227",
     "pdfkit": "^0.18.0",
     "resend": "^6.12.4",
-    "stripe": "^16.0.0",
-    "tesseract.js": "^5.1.0"
+    "stripe": "^16.0.0"
   }
 }

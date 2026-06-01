@@ -1,15 +1,14 @@
 import { supabaseAdmin } from '../lib/supabase.js'
 import { anthropic, GENERATION_MODEL } from '../lib/anthropicClient.js'
-import { pdfToPng } from 'pdf-to-png-converter'
-import pdf from 'pdf-parse'
 import mammoth from 'mammoth'
+import pdf from 'pdf-parse'
 
 // Process a case_document record:
 // 1. Download file from Supabase Storage
-// 2. Try text extraction (pdf-parse / mammoth)
-// 3. If scanned, convert to images and use Claude Vision
-// 4. Store extracted_text back in case_documents
-// 5. Update status
+// 2. For DOCX/TXT: extract text directly
+// 3. For PDF: try pdf-parse first, fall back to Claude native PDF
+// 4. For images: send to Claude Vision
+// 5. Store extracted_text back in case_documents
 
 export async function processCaseDocument(documentId) {
   console.log(`[OCR] Starting extraction for document ${documentId}`)
@@ -39,34 +38,42 @@ export async function processCaseDocument(documentId) {
     }
 
     const buffer = Buffer.from(await fileData.arrayBuffer())
-    const ext = getMimeTypeFromFilename(doc.file_name)
+    const mimeType = getMimeTypeFromFilename(doc.file_name)
+
     console.log(`[OCR] Extracting text from ${doc.file_name} (${doc.doc_type})`)
 
     let extractedText = ''
 
-    if (ext === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    if (mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
       // DOCX — use mammoth
       const result = await mammoth.extractRawText({ buffer })
       extractedText = result.value?.trim() || ''
       console.log(`[OCR] DOCX extracted ${extractedText.length} chars`)
-    } else if (ext === 'text/plain') {
+
+    } else if (mimeType === 'text/plain') {
       extractedText = buffer.toString('utf-8').trim()
-    } else if (ext === 'application/pdf') {
-      // Try pdf-parse first
+      console.log(`[OCR] TXT extracted ${extractedText.length} chars`)
+
+    } else if (mimeType === 'application/pdf') {
+      // Try pdf-parse first (fast, no API cost)
       try {
         const pdfData = await pdf(buffer)
         extractedText = pdfData.text?.trim() || ''
         console.log(`[OCR] pdf-parse extracted ${extractedText.length} chars`)
       } catch {}
 
+      // Fall back to Claude native PDF if text is too short
       if (extractedText.length < 100) {
-        console.log(`[OCR] Scanned PDF — converting to images for Claude Vision`)
-        extractedText = await extractWithClaudeVision(buffer, doc.file_name, doc.doc_type)
+        console.log(`[OCR] Scanned PDF — sending to Claude natively`)
+        extractedText = await extractPdfWithClaude(buffer, doc.file_name, doc.doc_type)
       }
+
+    } else if (['image/jpeg', 'image/png', 'image/tiff'].includes(mimeType)) {
+      // Image — send to Claude Vision
+      console.log(`[OCR] Image — sending to Claude Vision`)
+      extractedText = await extractImageWithClaude(buffer, mimeType, doc.file_name)
     } else {
-      // Image files — send directly to Claude Vision
-      console.log(`[OCR] Image file — sending to Claude Vision`)
-      extractedText = await extractImageWithClaude(buffer, ext, doc.file_name)
+      throw new Error(`Unsupported file type: ${mimeType}`)
     }
 
     if (!extractedText || extractedText.length < 10) {
@@ -95,15 +102,7 @@ export async function processCaseDocument(documentId) {
   }
 }
 
-async function extractWithClaudeVision(buffer, fileName, docType) {
-  const pages = await pdfToPng(buffer, {
-    disableFontFace: true,
-    useSystemFonts: true,
-    viewportScale: 2.5,
-  })
-
-  console.log(`[OCR] Converted ${pages.length} pages to images for Claude Vision`)
-
+async function extractPdfWithClaude(buffer, fileName, docType) {
   const docTypeLabels = {
     medical_scan: 'medizinische Akte / Scan',
     lab_report: 'Laborbericht',
@@ -112,34 +111,33 @@ async function extractWithClaudeVision(buffer, fileName, docType) {
     other: 'medizinisches Dokument',
   }
 
-  const messageContent = [
-    {
-      type: 'text',
-      text: `Extrahiere den vollständigen Text aus den folgenden Seiten eines ${docTypeLabels[docType] || 'Dokuments'} (Datei: ${fileName}).`
-    },
-    ...pages.map(page => ({
-      type: 'image',
-      source: {
-        type: 'base64',
-        media_type: 'image/png',
-        data: page.content.toString('base64'),
-      }
-    })),
-    {
-      type: 'text',
-      text: `Gib den vollständigen extrahierten Text zurück — alle Seiten zusammen, in der richtigen Reihenfolge.
-Behalte die Struktur bei (Überschriften, Absätze, Listen).
-Keine Erklärungen, nur der extrahierte Text.`
-    }
-  ]
-
   const message = await anthropic.messages.create({
     model: GENERATION_MODEL,
     max_tokens: 4000,
-    messages: [{ role: 'user', content: messageContent }]
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'document',
+          source: {
+            type: 'base64',
+            media_type: 'application/pdf',
+            data: buffer.toString('base64'),
+          }
+        },
+        {
+          type: 'text',
+          text: `Extrahiere den vollständigen Text aus diesem ${docTypeLabels[docType] || 'Dokument'} (${fileName}).
+Behalte die Struktur bei — Überschriften, Absätze, Listen, Tabellen.
+Gib nur den extrahierten Text zurück, keine Erklärungen oder Kommentare.`
+        }
+      ]
+    }]
   })
 
-  return message.content[0]?.text?.trim() || ''
+  const text = message.content[0]?.text?.trim() || ''
+  console.log(`[OCR] Claude extracted ${text.length} chars from PDF`)
+  return text
 }
 
 async function extractImageWithClaude(buffer, mimeType, fileName) {
@@ -153,19 +151,23 @@ async function extractImageWithClaude(buffer, mimeType, fileName) {
           type: 'image',
           source: {
             type: 'base64',
-            media_type: mimeType,
+            media_type: mimeType === 'image/tiff' ? 'image/jpeg' : mimeType,
             data: buffer.toString('base64'),
           }
         },
         {
           type: 'text',
-          text: `Extrahiere den vollständigen Text aus diesem Bild (${fileName}). Gib nur den extrahierten Text zurück, keine Erklärungen.`
+          text: `Extrahiere den vollständigen Text aus diesem Bild (${fileName}).
+Behalte die Struktur bei.
+Gib nur den extrahierten Text zurück, keine Erklärungen.`
         }
       ]
     }]
   })
 
-  return message.content[0]?.text?.trim() || ''
+  const text = message.content[0]?.text?.trim() || ''
+  console.log(`[OCR] Claude extracted ${text.length} chars from image`)
+  return text
 }
 
 function getMimeTypeFromFilename(filename) {
