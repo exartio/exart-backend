@@ -4,13 +4,14 @@ import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
 import { processStatement } from '../jobs/processStatement.js'
 import { processCaseDocument } from '../jobs/processCaseDocument.js'
+import { sendVerificationNotification } from '../lib/emailService.js'
 import { randomUUID } from 'crypto'
 
 const router = express.Router()
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }, // 20 MB
+  limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = [
       'application/pdf',
@@ -28,7 +29,7 @@ const upload = multer({
 async function getUserContext(authUserId) {
   const { data } = await supabaseAdmin
     .from('profiles')
-    .select('id, org_id')
+    .select('id, org_id, full_name')
     .eq('auth_user_id', authUserId)
     .single()
   return data
@@ -36,8 +37,6 @@ async function getUserContext(authUserId) {
 
 
 // POST /api/uploads/verification
-// Upload a physician credential document
-// Body (multipart): file, doc_type
 router.post('/verification', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
@@ -80,12 +79,31 @@ router.post('/verification', requireAuth, upload.single('file'), async (req, res
     .update({ verification_status: 'pending' })
     .eq('id', profile.id)
 
+  // Respond immediately
   res.status(201).json({ document: doc })
+
+  // Send notification email to admin — fire and forget
+  try {
+    const { data: org } = await supabaseAdmin
+      .from('organizations')
+      .select('name')
+      .eq('id', profile.org_id)
+      .single()
+
+    await sendVerificationNotification({
+      fullName: profile.full_name || req.user.email,
+      docType: doc_type,
+      orgName: org?.name,
+      submittedAt: doc.submitted_at || new Date().toISOString(),
+    })
+    console.log(`[EMAIL] Verification notification sent for ${profile.full_name}`)
+  } catch (emailErr) {
+    console.error('[EMAIL] Failed to send verification notification:', emailErr.message)
+  }
 })
 
 
 // GET /api/uploads/statements
-// List all past statements uploaded by the current user
 router.get('/statements', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.json({ statements: [] })
@@ -102,8 +120,6 @@ router.get('/statements', requireAuth, async (req, res) => {
 
 
 // POST /api/uploads/statement
-// Upload a past Gutachten for RAG ingestion
-// Body (multipart): file
 router.post('/statement', requireAuth, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
@@ -135,10 +151,8 @@ router.post('/statement', requireAuth, upload.single('file'), async (req, res) =
 
   if (dbError) throw dbError
 
-  // Respond immediately — processing runs in background
   res.status(201).json({ statement })
 
-  // Fire and forget
   processStatement(statement.id).catch(err =>
     console.error('[RAG] Unhandled error in processStatement:', err)
   )
@@ -146,7 +160,6 @@ router.post('/statement', requireAuth, upload.single('file'), async (req, res) =
 
 
 // DELETE /api/uploads/statement/:id
-// Delete a past statement
 router.delete('/statement/:id', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile) return res.status(404).json({ error: 'Profile not found' })
@@ -160,12 +173,10 @@ router.delete('/statement/:id', requireAuth, async (req, res) => {
 
   if (!statement) return res.status(404).json({ error: 'Statement not found' })
 
-  // Delete from storage
   await supabaseAdmin.storage
     .from('past-statements')
     .remove([statement.storage_path])
 
-  // Delete from DB
   await supabaseAdmin
     .from('past_statements')
     .delete()
@@ -176,8 +187,6 @@ router.delete('/statement/:id', requireAuth, async (req, res) => {
 
 
 // POST /api/uploads/case-document
-// Upload a document for a specific case
-// Body (multipart): file, case_id, doc_type
 router.post('/case-document', requireAuth, checkAccess, upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file provided' })
 
@@ -223,10 +232,8 @@ router.post('/case-document', requireAuth, checkAccess, upload.single('file'), a
 
   if (dbError) throw dbError
 
-  // Respond immediately — OCR runs in background
   res.status(201).json({ document: doc })
 
-  // Fire and forget
   processCaseDocument(doc.id).catch(err =>
     console.error('[OCR] Unhandled error in processCaseDocument:', err)
   )
@@ -234,7 +241,6 @@ router.post('/case-document', requireAuth, checkAccess, upload.single('file'), a
 
 
 // GET /api/uploads/statement/:id/status
-// Poll processing status of a past statement
 router.get('/statement/:id/status', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
 
@@ -251,7 +257,6 @@ router.get('/statement/:id/status', requireAuth, async (req, res) => {
 
 
 // GET /api/uploads/case-document/:id/status
-// Poll processing status of a case document
 router.get('/case-document/:id/status', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
 
