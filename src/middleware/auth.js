@@ -19,21 +19,31 @@ export async function requireAuth(req, res, next) {
 // Checks org access level and attaches req.accessLevel
 // 'none' | 'demo' | 'full'
 export async function checkAccess(req, res, next) {
-  const { data, error } = await supabaseAdmin
-    .rpc('check_org_access', { p_user_id: req.user.id })
-  console.log(`[ACCESS] user=${req.user.id} accessLevel=${data} error=${error?.message}`)
-  if (error) {
-    return res.status(500).json({ error: 'Failed to check access level' })
+  try {
+    const { data, error } = await supabaseAdmin
+      .rpc('check_org_access', { p_user_id: req.user.id })
+
+    if (error) {
+      // RPC error — default to 'none' and continue rather than crashing
+      console.error(`[ACCESS] check_org_access error for user ${req.user.id}:`, error.message)
+      req.accessLevel = 'none'
+      return next()
+    }
+
+    req.accessLevel = data || 'none'
+    next()
+  } catch (err) {
+    // Unexpected error (e.g. Supabase timeout) — fail gracefully
+    console.error(`[ACCESS] Unexpected error in checkAccess:`, err.message)
+    req.accessLevel = 'none'
+    next()
   }
-  req.accessLevel = data
-  next()
 }
 
 // Blocks requests from users without full access
 // Use on all AI processing routes
 export function requireFullAccess(req, res, next) {
   if (req.accessLevel !== 'full') {
-    console.log(`[ACCESS] requireFullAccess blocked: accessLevel=${req.accessLevel}`)
     return res.status(403).json({
       error: 'Full access required',
       reason: req.accessLevel === 'demo'
