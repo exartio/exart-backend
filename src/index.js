@@ -5,12 +5,12 @@ import stripeRouter from './routes/stripe.js'
 import orgsRouter from './routes/orgs.js'
 import uploadsRouter from './routes/uploads.js'
 import casesRouter from './routes/cases.js'
+import verificationRouter from './routes/verification.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
-import subscriptionsRouter, { checkGenerationQuota, incrementGenerationQuota } from './routes/subscriptions.js'
+import subscriptionsRouter from './routes/subscriptions.js'
 import templatesRouter from './routes/templates.js'
-import verificationRouter from './routes/verification.js'
 
 // ── Catch unhandled rejections before they crash the process ──
 process.on('unhandledRejection', (reason, promise) => {
@@ -19,7 +19,6 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Reason:', JSON.stringify(reason, null, 2))
   console.error('Reason (raw):', reason)
   console.error('===========================')
-  // Do NOT re-throw — log and continue
 })
 
 process.on('uncaughtException', (err) => {
@@ -36,11 +35,10 @@ app.use(cors({
     process.env.FRONTEND_URL || 'https://exart.io',
     'https://exart.io',
     'https://www.exart.io',
-    'https://exart-io.webflow.io',  // keep during transition
-    'https://exart.io',
-    'http://localhost:3000'
+    'https://exart-io.webflow.io', // keep during domain transition
+    'http://localhost:3000',
   ],
-  credentials: true
+  credentials: true,
 }))
 
 // Stripe webhook MUST be registered before express.json()
@@ -50,17 +48,17 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 // Routes
-app.use('/api/stripe', stripeRouter)
-app.use('/api/orgs', orgsRouter)
-app.use('/api/uploads', uploadsRouter)
-app.use('/api/cases', casesRouter)
-app.use('/api/verification', verificationRouter)
-app.use('/api/generate', generateRouter)
-app.use('/api/export', exportRouter)
-app.use('/api/profile', profileRouter)
-app.use('/api/subscriptions', subscriptionsRouter)
-app.use('/api/account', profileRouter)
-app.use('/api/templates', templatesRouter)
+app.use('/api/stripe',         stripeRouter)
+app.use('/api/orgs',           orgsRouter)
+app.use('/api/uploads',        uploadsRouter)
+app.use('/api/cases',          casesRouter)
+app.use('/api/verification',   verificationRouter)
+app.use('/api/generate',       generateRouter)
+app.use('/api/export',         exportRouter)
+app.use('/api/profile',        profileRouter)
+app.use('/api/account',        profileRouter)
+app.use('/api/subscriptions',  subscriptionsRouter)
+app.use('/api/templates',      templatesRouter)
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }))
