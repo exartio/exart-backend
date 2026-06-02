@@ -30,7 +30,22 @@ router.get('/me', requireAuth, async (req, res) => {
     .single()
 
   if (error) throw error
-  res.json({ org })
+
+  // Check subscription status for accessLevel
+  const { data: sub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('status, plan')
+    .eq('org_id', member.org_id)
+    .single()
+
+  const hasActiveSub = sub?.status === 'active' || sub?.status === 'trialing'
+  const hasPhysician = org?.has_verified_physician === true
+
+  let accessLevel = 'none'
+  if (hasActiveSub && hasPhysician) accessLevel = 'full'
+  else if (hasActiveSub || hasPhysician) accessLevel = 'demo'
+
+  res.json({ org, accessLevel })
 })
 
 // PATCH /api/orgs/me
