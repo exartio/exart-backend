@@ -53,6 +53,7 @@ router.get('/me', requireAuth, async (req, res) => {
 
   res.json({
     plan_name: planNames[sub.plan] || sub.plan,
+    plan_key: sub.plan,
     status: sub.status,
     current_period_end: sub.current_period_end,
     quota,

@@ -9,23 +9,47 @@ export const PLANS = {
     priceId: process.env.STRIPE_SOLO_PRICE_ID,
     verifiedSeatLimit: 1,
     label: 'Solo-Lizenz',
-    amount: 14900, // €149/month in cents
+    amount: 14900,
     interval: 'month',
+    type: 'recurring',
+  },
+  solo_yearly: {
+    priceId: process.env.STRIPE_SOLO_YEARLY_PRICE_ID,
+    verifiedSeatLimit: 1,
+    label: 'Solo-Lizenz (jährlich)',
+    amount: 149000,
+    interval: 'year',
     type: 'recurring',
   },
   expert: {
     priceId: process.env.STRIPE_EXPERT_PRICE_ID,
     verifiedSeatLimit: 5,
     label: 'Expert-Lizenz',
-    amount: 34900, // €349/month in cents
+    amount: 34900,
     interval: 'month',
     type: 'recurring',
   },
-  unit: {
-    priceId: process.env.STRIPE_EINZELGUTACHTEN_PRICE_ID,
+  expert_yearly: {
+    priceId: process.env.STRIPE_EXPERT_YEARLY_PRICE_ID,
+    verifiedSeatLimit: 5,
+    label: 'Expert-Lizenz (jährlich)',
+    amount: 349000,
+    interval: 'year',
+    type: 'recurring',
+  },
+  einzelgutachten: {
+    priceId: process.env.STRIPE_UNIT_PRICE_ID,
     verifiedSeatLimit: 1,
     label: 'Einzelgutachten',
-    amount: 5900, // €59 one-time in cents
+    amount: 5900,
+    interval: null,
+    type: 'one_time',
+  },
+  einzelgutachten_solo: {
+    priceId: process.env.STRIPE_UNIT_SOLO_PRICE_ID,
+    verifiedSeatLimit: 1,
+    label: 'Einzelgutachten (Solo-Rabatt)',
+    amount: 3900,
     interval: null,
     type: 'one_time',
   },

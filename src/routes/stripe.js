@@ -47,7 +47,25 @@ router.post('/checkout', requireAuth, async (req, res) => {
       .eq('org_id', member.org_id)
   }
 
-  const planConfig = PLANS[plan]
+  // For unit purchases: check if org has active solo plan → apply discount
+  let effectivePlan = plan
+  if (plan === 'einzelgutachten') {
+    const { data: existingSub } = await supabaseAdmin
+      .from('subscriptions')
+      .select('plan, status')
+      .eq('org_id', member.org_id)
+      .single()
+
+    const isSolo = existingSub?.status === 'active' &&
+      (existingSub.plan === 'solo' || existingSub.plan === 'solo_yearly')
+
+    if (isSolo && process.env.STRIPE_UNIT_SOLO_PRICE_ID) {
+      effectivePlan = 'einzelgutachten_solo'
+      console.log(`[STRIPE] Applying solo discount for unit purchase, org ${member.org_id}`)
+    }
+  }
+
+  const planConfig = PLANS[effectivePlan]
   const isOneTime = planConfig.type === 'one_time'
 
   // Payment methods:
