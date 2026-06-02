@@ -137,21 +137,14 @@ ${docsText}`)
     let findingsText = ''
     if (Array.isArray(ownFindings) && ownFindings.length > 0) {
       findingsText = ownFindings
-        .map(f => `### ${findingsTypeLabels[f.type] || f.type}
-${f.text}`)
-        .join('
-
-')
+        .map(f => `### ${findingsTypeLabels[f.type] || f.type}\n${f.text}`)
+        .join('\n\n')
     } else if (typeof ownFindings === 'string' && ownFindings.trim()) {
       findingsText = ownFindings.trim()
     }
 
     if (findingsText) {
-      sections.push(`# Eigene Untersuchungsbefunde des Gutachters
-
-Die folgenden Befunde wurden vom Gutachter persönlich erhoben und sind gegliedert nach Befundtyp. Übernehme diese Befunde wortgetreu in die entsprechenden Kapitel des Gutachtens:
-
-${findingsText}`)
+      sections.push(`# Eigene Untersuchungsbefunde des Gutachters\n\nDie folgenden Befunde wurden vom Gutachter persönlich erhoben und sind gegliedert nach Befundtyp. Übernehme diese Befunde wortgetreu in die entsprechenden Kapitel des Gutachtens:\n\n${findingsText}`)
     }
   }
 
