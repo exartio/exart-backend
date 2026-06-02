@@ -5,7 +5,6 @@ import stripeRouter from './routes/stripe.js'
 import orgsRouter from './routes/orgs.js'
 import uploadsRouter from './routes/uploads.js'
 import casesRouter from './routes/cases.js'
-import verificationRouter from './routes/verification.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
@@ -62,7 +61,6 @@ app.use('/api/profile', profileRouter)
 app.use('/api/subscriptions', subscriptionsRouter)
 app.use('/api/account', profileRouter)
 app.use('/api/templates', templatesRouter)
-app.use('/api/verification', verificationRouter)
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }))
