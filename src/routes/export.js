@@ -117,24 +117,51 @@ async function generateDocx(output, caseRow, profile, org) {
   })
 
   // ── Footer ────────────────────────────────────────────────────────────────
-  const footer = new Footer({
-    children: [
-      new Paragraph({
-        children: [new TextRun({ text: '', font: FONT })],
-        border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC', space: 4 } },
-        spacing: { before: 80 },
-      }),
-      new Paragraph({
-        children: [
-          new TextRun({ text: org?.name || '', font: FONT, size: pt(8), color: COLOR_LIGHT }),
-          new TextRun({ text: '\t', font: FONT, size: pt(8) }),
-          new TextRun({ text: 'Seite ', font: FONT, size: pt(8), color: COLOR_LIGHT }),
-          new PageNumber({ font: FONT, size: pt(8), color: COLOR_LIGHT }),
-        ],
-        tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
-      }),
-    ],
+  const fs = org?.footer_settings || {}
+  const footerLines = [
+    [org?.name || '', fs.email ? `E-Mail: ${fs.email}` : '', fs.steuer ? `Steuernummer: ${fs.steuer}` : ''],
+    [profile?.full_name || '', fs.tel ? `Tel: ${fs.tel}` : '', fs.iban ? `IBAN: ${fs.iban}` : ''],
+    [org?.address || '', fs.fax ? `Fax: ${fs.fax}` : '', fs.bank || ''],
+  ]
+
+  const footerParas = [
+    new Paragraph({
+      children: [new TextRun({ text: '', font: FONT })],
+      border: { top: { style: BorderStyle.SINGLE, size: 4, color: 'CCCCCC', space: 4 } },
+      spacing: { before: 60, after: 40 },
+    }),
+  ]
+
+  footerLines.forEach(cols => {
+    footerParas.push(new Paragraph({
+      children: [
+        new TextRun({ text: cols[0], font: FONT, size: pt(8), color: COLOR_LIGHT }),
+        new TextRun({ text: '\t', font: FONT, size: pt(8) }),
+        new TextRun({ text: cols[1], font: FONT, size: pt(8), color: COLOR_LIGHT }),
+        new TextRun({ text: '\t', font: FONT, size: pt(8) }),
+        new TextRun({ text: cols[2], font: FONT, size: pt(8), color: COLOR_LIGHT }),
+      ],
+      tabStops: [
+        { type: TabStopType.LEFT, position: 4000 },
+        { type: TabStopType.LEFT, position: 8000 },
+      ],
+      spacing: { before: 0, after: 0 },
+    }))
   })
+
+  // Page number on last footer line
+  footerParas.push(new Paragraph({
+    children: [
+      new TextRun({ text: '', font: FONT, size: pt(8) }),
+      new TextRun({ text: '\t', font: FONT, size: pt(8) }),
+      new TextRun({ text: 'Seite ', font: FONT, size: pt(8), color: COLOR_LIGHT }),
+      new PageNumber({ font: FONT, size: pt(8), color: COLOR_LIGHT }),
+    ],
+    tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+    spacing: { before: 0, after: 0 },
+  }))
+
+  const footer = new Footer({ children: footerParas })
 
   // ── Document body ─────────────────────────────────────────────────────────
   const children = []
@@ -311,7 +338,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   // Load profile and org
   const { data: member } = await supabaseAdmin
     .from('organization_members')
-    .select('org_id, organizations(name, address)')
+    .select('org_id, organizations(name, address, footer_settings)')
     .eq('user_id', req.user.id)
     .single()
 
