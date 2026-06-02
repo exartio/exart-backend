@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM = 'exart.io <noreply@exart.io>'
-const ADMIN_EMAIL = 'exartio@posteo.de'
+const ADMIN_EMAIL = 'k.schlaaff@posteo.de'
 
 // ── Verification notification to admin ───────────────────────
 export async function sendVerificationNotification({ fullName, docType, orgName, submittedAt, userId, orgId }) {
@@ -201,6 +201,156 @@ export async function sendVerificationApproved({ fullName, email }) {
           </table>
 
           <p style="margin:0;font-size:13px;color:#4a5568;line-height:1.7;">
+            Bei Fragen stehen wir Ihnen unter <a href="mailto:kontakt@exart.io" style="color:#1a2640;">kontakt@exart.io</a> zur Verfügung.
+          </p>
+        </td></tr>
+
+        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.1);">
+          <p style="margin:0;font-size:11px;color:#6b7a94;text-align:center;">
+            exart.io · <a href="https://exart.io" style="color:#1a2640;">exart.io</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+    `,
+  })
+}
+
+// ── Referral notification to referrer when code is applied ──
+export async function sendReferralNotification({ referrerName, referrerEmail, referredName }) {
+  await resend.emails.send({
+    from: FROM,
+    to: referrerEmail,
+    subject: `Ihr Empfehlungscode wurde verwendet — exart.io`,
+    html: `
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
+
+        <tr><td style="background:#1a2640;padding:24px 32px;">
+          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.02em;">
+            exart<span style="color:#b89a5e;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:500;letter-spacing:0.12em;vertical-align:super;">.io</span>
+          </p>
+        </td></tr>
+
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#b89a5e;font-weight:500;">Empfehlungsprogramm</p>
+          <h1 style="margin:0 0 20px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;line-height:1.3;">
+            Ihr Empfehlungscode wurde verwendet
+          </h1>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;border-radius:5px;margin-bottom:24px;">
+            <tr><td style="padding:20px 24px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#6b7a94;font-family:'DM Sans',Arial,sans-serif;">Sehr geehrte/r ${referrerName},</p>
+              <p style="margin:0;font-size:14px;color:#1a2640;line-height:1.7;">
+                <strong>${referredName}</strong> hat sich bei exart.io registriert und Ihren Empfehlungscode verwendet. Sie wurden als Empfehlender eingetragen.
+              </p>
+            </td></tr>
+          </table>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a2640;border-radius:6px;margin-bottom:24px;">
+            <tr><td style="padding:20px 24px;">
+              <p style="margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#b89a5e;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">Ihr Bonus</p>
+              <p style="margin:0;font-size:16px;font-weight:600;color:#ffffff;font-family:'Playfair Display',Georgia,serif;">
+                50 € Gutschrift auf Ihre nächste Rechnung
+              </p>
+              <p style="margin:6px 0 0;font-size:12px;color:rgba(255,255,255,0.5);font-family:'DM Sans',Arial,sans-serif;">
+                Die Gutschrift wird automatisch auf Ihre nächste Abrechnung angerechnet, sobald ${referredName} ein Abonnement abschließt.
+              </p>
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 24px;font-size:14px;color:#4a5568;line-height:1.7;">
+            Ihr Kollege oder Ihre Kollegin erhält ebenfalls einen Willkommensbonus von 50&nbsp;€ auf ihre erste Rechnung.
+          </p>
+
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td style="background:#b89a5e;border-radius:4px;">
+              <a href="https://exart.io/dashboard-settings#abonnement"
+                 style="display:inline-block;padding:11px 22px;font-size:13px;font-weight:500;color:#1a2640;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+                Abonnement und Empfehlungen ansehen →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">
+            Bei Fragen stehen wir Ihnen unter <a href="mailto:kontakt@exart.io" style="color:#1a2640;">kontakt@exart.io</a> zur Verfügung.
+          </p>
+        </td></tr>
+
+        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.1);">
+          <p style="margin:0;font-size:11px;color:#6b7a94;text-align:center;">
+            exart.io · <a href="https://exart.io" style="color:#1a2640;">exart.io</a>
+          </p>
+        </td></tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>
+    `,
+  })
+}
+
+// ── Referral reward notification to referrer after first payment ──
+export async function sendReferralRewardNotification({ referrerName, referrerEmail, referredName }) {
+  await resend.emails.send({
+    from: FROM,
+    to: referrerEmail,
+    subject: `50 € Empfehlungsbonus gutgeschrieben — exart.io`,
+    html: `
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
+
+        <tr><td style="background:#1a2640;padding:24px 32px;">
+          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.02em;">
+            exart<span style="color:#b89a5e;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:500;letter-spacing:0.12em;vertical-align:super;">.io</span>
+          </p>
+        </td></tr>
+
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#b89a5e;font-weight:500;">Empfehlungsbonus</p>
+          <h1 style="margin:0 0 20px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;line-height:1.3;">
+            Ihr Empfehlungsbonus wurde gutgeschrieben
+          </h1>
+
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#1a2640;border-radius:6px;margin-bottom:24px;">
+            <tr><td style="padding:24px;">
+              <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:#b89a5e;font-weight:600;font-family:'DM Sans',Arial,sans-serif;">Gutschrift erhalten</p>
+              <p style="margin:0 0 4px;font-size:28px;font-weight:600;color:#ffffff;font-family:'Playfair Display',Georgia,serif;">50,00 €</p>
+              <p style="margin:0;font-size:12px;color:rgba(255,255,255,0.5);font-family:'DM Sans',Arial,sans-serif;">wird von Ihrer nächsten Rechnung abgezogen</p>
+            </td></tr>
+          </table>
+
+          <p style="margin:0 0 20px;font-size:14px;color:#4a5568;line-height:1.7;">
+            Sehr geehrte/r ${referrerName},<br><br>
+            <strong>${referredName}</strong> hat soeben ein Abonnement bei exart.io abgeschlossen. Ihr Empfehlungsbonus von 50&nbsp;€ wurde Ihrem Konto gutgeschrieben und wird automatisch von Ihrer nächsten Abrechnung abgezogen.
+          </p>
+
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td style="background:#b89a5e;border-radius:4px;">
+              <a href="https://exart.io/dashboard-settings#abonnement"
+                 style="display:inline-block;padding:11px 22px;font-size:13px;font-weight:500;color:#1a2640;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+                Abonnement ansehen →
+              </a>
+            </td></tr>
+          </table>
+
+          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">
             Bei Fragen stehen wir Ihnen unter <a href="mailto:kontakt@exart.io" style="color:#1a2640;">kontakt@exart.io</a> zur Verfügung.
           </p>
         </td></tr>

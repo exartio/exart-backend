@@ -1,4 +1,5 @@
 import express from 'express'
+import { sendReferralNotification, sendReferralRewardNotification } from '../lib/emailService.js'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import Stripe from 'stripe'
@@ -6,9 +7,9 @@ import Stripe from 'stripe'
 const router = express.Router()
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
-// Discount amount for referral reward (in cents)
-const REFERRAL_DISCOUNT_AMOUNT = 1490 // 14.90€ — one month solo price
-const REFERRAL_DISCOUNT_PERCENT = 10  // fallback: 10% off next invoice
+// Discount amounts for referral rewards (in cents)
+const REFERRAL_REFERRER_DISCOUNT = 5000 // 50€ off next invoice for referrer
+const REFERRAL_REFERRED_DISCOUNT = 5000 // 50€ off next invoice for referred user
 
 async function getProfile(authUserId) {
   const { data } = await supabaseAdmin
@@ -127,6 +128,23 @@ router.post('/apply', requireAuth, async (req, res) => {
 
   console.log(`[REFERRAL] ${profile.full_name} referred by ${referrer.full_name} (code: ${code})`)
 
+  // Get referrer email and send notification
+  try {
+    const { data: referrerAuth } = await supabaseAdmin.auth.admin.getUserById(
+      // Need to get auth_user_id from referrer profile
+      (await supabaseAdmin.from('profiles').select('auth_user_id').eq('id', referrer.id).single()).data?.auth_user_id
+    )
+    if (referrerAuth?.user?.email) {
+      sendReferralNotification({
+        referrerName:  referrer.full_name || 'Kollegin/Kollege',
+        referrerEmail: referrerAuth.user.email,
+        referredName:  profile.full_name || 'Ein neuer Nutzer',
+      }).catch(err => console.error('[REFERRAL] Notification email failed:', err.message))
+    }
+  } catch(err) {
+    console.error('[REFERRAL] Could not send notification:', err.message)
+  }
+
   res.json({
     success: true,
     referrer_name: referrer.full_name,
@@ -166,32 +184,85 @@ export async function applyReferralReward(referralId) {
   }
 
   try {
-    // Create a one-time Stripe coupon for the referrer
-    const coupon = await stripe.coupons.create({
-      amount_off: REFERRAL_DISCOUNT_AMOUNT,
+    // ── Reward referrer (50€ off next invoice) ────────────────
+    const referrerCoupon = await stripe.coupons.create({
+      amount_off: REFERRAL_REFERRER_DISCOUNT,
       currency: 'eur',
       duration: 'once',
       name: `Empfehlungsbonus — ${referrerProfile.full_name}`,
       max_redemptions: 1,
     })
 
-    // Apply coupon to referrer's customer
     await stripe.customers.update(sub.stripe_customer_id, {
-      coupon: coupon.id,
+      coupon: referrerCoupon.id,
     })
 
-    // Mark referral as rewarded
+    console.log(`[REFERRAL] Referrer reward: ${referrerProfile.full_name} gets ${REFERRAL_REFERRER_DISCOUNT / 100}€ off (coupon ${referrerCoupon.id})`)
+
+    // Get referred user name for the email
+    const { data: referredProfileForEmail } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name')
+      .eq('id', referral.referred_id)
+      .single()
+
+    // Send reward notification to referrer
+    try {
+      const { data: referrerAuthUser } = await supabaseAdmin.auth.admin.getUserById(
+        (await supabaseAdmin.from('profiles').select('auth_user_id').eq('id', referral.referrer_id).single()).data?.auth_user_id
+      )
+      if (referrerAuthUser?.user?.email) {
+        sendReferralRewardNotification({
+          referrerName:  referrerProfile.full_name || 'Kollegin/Kollege',
+          referrerEmail: referrerAuthUser.user.email,
+          referredName:  referredProfileForEmail?.full_name || 'Ihr Kollege',
+        }).catch(err => console.error('[REFERRAL] Reward email failed:', err.message))
+      }
+    } catch(err) {
+      console.error('[REFERRAL] Could not send reward email:', err.message)
+    }
+
+    // ── Reward referred user (50€ off next invoice) ───────────
+    const { data: referredProfile } = await supabaseAdmin
+      .from('profiles')
+      .select('id, full_name, org_id')
+      .eq('id', referral.referred_id)
+      .single()
+
+    if (referredProfile?.org_id) {
+      const { data: referredSub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('stripe_customer_id, status')
+        .eq('org_id', referredProfile.org_id)
+        .single()
+
+      if (referredSub?.stripe_customer_id && referredSub.status === 'active') {
+        const referredCoupon = await stripe.coupons.create({
+          amount_off: REFERRAL_REFERRED_DISCOUNT,
+          currency: 'eur',
+          duration: 'once',
+          name: `Willkommensbonus — ${referredProfile.full_name}`,
+          max_redemptions: 1,
+        })
+
+        await stripe.customers.update(referredSub.stripe_customer_id, {
+          coupon: referredCoupon.id,
+        })
+
+        console.log(`[REFERRAL] Referred reward: ${referredProfile.full_name} gets ${REFERRAL_REFERRED_DISCOUNT / 100}€ off (coupon ${referredCoupon.id})`)
+      }
+    }
+
+    // ── Mark referral as rewarded ─────────────────────────────
     await supabaseAdmin
       .from('referrals')
       .update({
         status: 'rewarded',
         reward_type: 'stripe_coupon',
-        stripe_coupon_id: coupon.id,
+        stripe_coupon_id: referrerCoupon.id,
         rewarded_at: new Date().toISOString(),
       })
       .eq('id', referralId)
-
-    console.log(`[REFERRAL] Reward applied to ${referrerProfile.full_name}: coupon ${coupon.id} (${REFERRAL_DISCOUNT_AMOUNT / 100}€ off)`)
 
   } catch (err) {
     console.error(`[REFERRAL] Failed to apply reward:`, err.message)
