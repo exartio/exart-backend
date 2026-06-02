@@ -95,6 +95,8 @@ router.post('/verification', requireAuth, upload.single('file'), async (req, res
       docType: doc_type,
       orgName: org?.name,
       submittedAt: doc.submitted_at || new Date().toISOString(),
+      userId: req.user.id,
+      orgId: profile.org_id,
     })
     console.log(`[EMAIL] Verification notification sent for ${profile.full_name}`)
   } catch (emailErr) {
