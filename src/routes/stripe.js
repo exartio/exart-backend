@@ -148,18 +148,37 @@ async function handleStripeEvent(event) {
           .eq('org_id', orgId)
         await auditLog(orgId, null, 'subscription.activated', 'subscriptions', null, { plan })
       } else if (session.mode === 'payment') {
-        // One-time Einzelgutachten purchase
-        await supabaseAdmin
+        // One-time unit purchase — never expires
+        const { data: existingSub } = await supabaseAdmin
           .from('subscriptions')
-          .update({
-            stripe_customer_id: session.customer,
-            plan: plan || 'einzelgutachten',
-            status: 'active',
-            verified_seat_limit: 1,
-            current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days access
-          })
+          .select('plan, status, addon_unit_count')
           .eq('org_id', orgId)
-        await auditLog(orgId, null, 'subscription.einzelgutachten', 'subscriptions', null, { plan })
+          .single()
+
+        if (existingSub?.status === 'active' && existingSub.plan !== 'none' && existingSub.plan !== 'unit') {
+          // Existing active subscription — add as addon unit (no expiry)
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              stripe_customer_id: session.customer,
+              addon_unit_count: (existingSub.addon_unit_count || 0) + 1,
+            })
+            .eq('org_id', orgId)
+          await auditLog(orgId, null, 'subscription.addon_unit_added', 'subscriptions', null, { plan })
+        } else {
+          // No active subscription — standalone unit purchase, no expiry
+          await supabaseAdmin
+            .from('subscriptions')
+            .update({
+              stripe_customer_id: session.customer,
+              plan: 'unit',
+              status: 'active',
+              gutachten_count: 0,
+              current_period_end: null,
+            })
+            .eq('org_id', orgId)
+          await auditLog(orgId, null, 'subscription.unit_purchased', 'subscriptions', null, { plan })
+        }
       }
       break
     }
