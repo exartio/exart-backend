@@ -1,141 +1,89 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
-import { requireAuth } from '../middleware/auth.js'
+import { sendVerificationApproved } from '../lib/emailService.js'
 
 const router = express.Router()
 
-async function requireAdmin(userId) {
-  const { data } = await supabaseAdmin
-    .from('organization_members')
-    .select('org_id, role')
-    .eq('user_id', userId)
-    .single()
-  if (!data || !['owner', 'admin'].includes(data.role)) return null
-  return data
-}
+// POST /api/verification/webhook
+// Called by Supabase Database Webhook when verification_status changes to 'verified'
+// Secured with a shared secret in the Authorization header
+router.post('/webhook', async (req, res) => {
+  // Verify webhook secret
+  const secret = req.headers['x-webhook-secret']
+  if (!secret || secret !== process.env.VERIFICATION_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
 
+  try {
+    const record = req.body?.record
+    const oldRecord = req.body?.old_record
 
-// GET /api/verification/pending
-// List pending verification docs for the org (admins only)
-router.get('/pending', requireAuth, async (req, res) => {
-  const member = await requireAdmin(req.user.id)
-  if (!member) return res.status(403).json({ error: 'Admin access required' })
+    // Only fire when status changes TO 'verified'
+    if (!record || record.verification_status !== 'verified') {
+      return res.json({ message: 'No action needed' })
+    }
 
-  const { data: docs, error } = await supabaseAdmin
-    .from('verification_documents')
-    .select(`
-      id, doc_type, status, submitted_at,
-      profiles ( id, full_name, title, verification_status )
-    `)
-    .eq('org_id', member.org_id)
-    .eq('status', 'pending')
-    .order('submitted_at', { ascending: true })
+    // Skip if it was already verified (no change)
+    if (oldRecord?.verification_status === 'verified') {
+      return res.json({ message: 'Already verified, skipping' })
+    }
 
-  if (error) throw error
-  res.json({ documents: docs })
+    const profileId = record.id
+    const fullName  = record.full_name || 'Nutzer'
+
+    // Get auth user email via auth_user_id
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(
+      record.auth_user_id
+    )
+
+    if (authError || !authUser?.user?.email) {
+      console.error('[VERIF] Could not find auth user for profile', profileId, authError?.message)
+      return res.status(500).json({ error: 'Could not find user email' })
+    }
+
+    const email = authUser.user.email
+    console.log(`[VERIF] Sending approval email to ${email} (${fullName})`)
+
+    await sendVerificationApproved({ fullName, email })
+
+    console.log(`[VERIF] Approval email sent to ${email}`)
+    res.json({ message: 'Approval email sent' })
+
+  } catch (err) {
+    console.error('[VERIF] Webhook error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
 })
 
+// POST /api/verification/approve
+// Manual trigger — admin can call this directly if needed
+// Body: { profile_id }
+router.post('/approve', async (req, res) => {
+  const secret = req.headers['x-webhook-secret']
+  if (!secret || secret !== process.env.VERIFICATION_WEBHOOK_SECRET) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
 
-// GET /api/verification/signed-url/:docId
-// Get a signed URL to view a verification document (admins only)
-router.get('/signed-url/:docId', requireAuth, async (req, res) => {
-  const member = await requireAdmin(req.user.id)
-  if (!member) return res.status(403).json({ error: 'Admin access required' })
+  const { profile_id } = req.body
+  if (!profile_id) return res.status(400).json({ error: 'profile_id required' })
 
-  const { data: doc } = await supabaseAdmin
-    .from('verification_documents')
-    .select('storage_path')
-    .eq('id', req.params.docId)
-    .eq('org_id', member.org_id)
+  const { data: profile, error } = await supabaseAdmin
+    .from('profiles')
+    .select('id, full_name, auth_user_id, verification_status')
+    .eq('id', profile_id)
     .single()
 
-  if (!doc) return res.status(404).json({ error: 'Document not found' })
+  if (error || !profile) return res.status(404).json({ error: 'Profile not found' })
 
-  const { data: signedUrl } = await supabaseAdmin.storage
-    .from('verification-documents')
-    .createSignedUrl(doc.storage_path, 3600)
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(profile.auth_user_id)
+  if (!authUser?.user?.email) return res.status(404).json({ error: 'Email not found' })
 
-  res.json({ url: signedUrl.signedUrl })
-})
-
-
-// POST /api/verification/:docId/approve
-// Approve a verification document — triggers profile + org unlock via DB triggers
-router.post('/:docId/approve', requireAuth, async (req, res) => {
-  const member = await requireAdmin(req.user.id)
-  if (!member) return res.status(403).json({ error: 'Admin access required' })
-
-  const { data: doc } = await supabaseAdmin
-    .from('verification_documents')
-    .select('id')
-    .eq('id', req.params.docId)
-    .eq('org_id', member.org_id)
-    .single()
-
-  if (!doc) return res.status(404).json({ error: 'Document not found' })
-
-  const { error } = await supabaseAdmin
-    .from('verification_documents')
-    .update({
-      status: 'approved',
-      reviewed_by: req.user.id,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', doc.id)
-
-  if (error) throw error
-
-  await supabaseAdmin.from('audit_log').insert({
-    org_id: member.org_id,
-    user_id: req.user.id,
-    action: 'verification.approved',
-    entity_type: 'verification_documents',
-    entity_id: doc.id,
+  await sendVerificationApproved({
+    fullName: profile.full_name || 'Nutzer',
+    email: authUser.user.email,
   })
 
-  res.json({ message: 'Approved. Physician verification unlocked.' })
-})
-
-
-// POST /api/verification/:docId/reject
-// Reject a verification document with an optional note
-// Body: { note? }
-router.post('/:docId/reject', requireAuth, async (req, res) => {
-  const { note } = req.body
-  const member = await requireAdmin(req.user.id)
-  if (!member) return res.status(403).json({ error: 'Admin access required' })
-
-  const { data: doc } = await supabaseAdmin
-    .from('verification_documents')
-    .select('id')
-    .eq('id', req.params.docId)
-    .eq('org_id', member.org_id)
-    .single()
-
-  if (!doc) return res.status(404).json({ error: 'Document not found' })
-
-  const { error } = await supabaseAdmin
-    .from('verification_documents')
-    .update({
-      status: 'rejected',
-      rejection_note: note || null,
-      reviewed_by: req.user.id,
-      reviewed_at: new Date().toISOString(),
-    })
-    .eq('id', doc.id)
-
-  if (error) throw error
-
-  await supabaseAdmin.from('audit_log').insert({
-    org_id: member.org_id,
-    user_id: req.user.id,
-    action: 'verification.rejected',
-    entity_type: 'verification_documents',
-    entity_id: doc.id,
-    metadata: { note },
-  })
-
-  res.json({ message: 'Document rejected.' })
+  res.json({ message: 'Approval email sent', email: authUser.user.email })
 })
 
 export default router

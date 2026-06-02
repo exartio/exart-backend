@@ -11,6 +11,7 @@ import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
 import subscriptionsRouter, { checkGenerationQuota, incrementGenerationQuota } from './routes/subscriptions.js'
 import templatesRouter from './routes/templates.js'
+import verificationRouter from './routes/verification.js'
 
 // ── Catch unhandled rejections before they crash the process ──
 process.on('unhandledRejection', (reason, promise) => {
@@ -61,6 +62,7 @@ app.use('/api/profile', profileRouter)
 app.use('/api/subscriptions', subscriptionsRouter)
 app.use('/api/account', profileRouter)
 app.use('/api/templates', templatesRouter)
+app.use('/api/verification', verificationRouter)
 
 // Health check
 app.get('/health', (req, res) => res.json({ ok: true }))
