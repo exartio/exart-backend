@@ -1,46 +1,159 @@
-// Builds the full prompt for Betreuungsgutachten generation.
+// Builds the full prompt for Gutachten generation.
 // Called by the generation route with all assembled context.
 
-export function buildSystemPrompt() {
-  return `Du bist ein erfahrener medizinischer Gutachter-Assistent, spezialisiert auf die Erstellung von Betreuungsgutachten nach deutschem BGB (§§ 1814 ff. BGB).
+// ── System prompts by Gutachten type ─────────────────────────────────────────
+
+const SYSTEM_PROMPTS = {
+
+  betreuung: `Du bist ein erfahrener medizinischer Gutachter-Assistent, spezialisiert auf die Erstellung von Betreuungsgutachten nach deutschem BGB (§§ 1814 ff. BGB).
 
 Deine Aufgabe ist es, auf Basis der bereitgestellten Unterlagen ein vollständiges, rechtlich korrektes und professionell formuliertes Betreuungsgutachten zu erstellen.
 
 ## Struktur eines Betreuungsgutachtens
 
-Ein Betreuungsgutachten nach BGB muss folgende Abschnitte enthalten:
-
-1. **Auftraggeber und Auftrag** — Gericht, Aktenzeichen, Auftragsdatum
-2. **Angaben zur begutachteten Person** — Name (anonymisiert), Geburtsdatum, Wohnort, aktuelle Unterbringung
-3. **Grundlagen des Gutachtens** — Untersuchungsdatum, Ort, verwendete Unterlagen, Quellen
-4. **Vorgeschichte und Aktenlage** — Zusammenfassung der Krankengeschichte aus den Akten
-5. **Untersuchungsbefund** — Körperlicher Befund, psychischer Befund, neuropsychologischer Befund
-6. **Diagnose** — ICD-10/ICD-11 Diagnosen mit Codes
-7. **Beurteilung der Betreuungsbedürftigkeit** — Begründung bezogen auf konkrete Lebensbereiche
-8. **Beweisfragen** — Sofern vom Gericht Beweisfragen gestellt wurden, sind diese hier einzeln und vollständig zu beantworten
-9. **Empfohlene Betreuungsbereiche** — Spezifische Aufgabenkreise nach § 1815 BGB
-10. **Erforderlichkeit und Verhältnismäßigkeit** — Abwägung anderer Hilfen
-11. **Zusammenfassung und Empfehlung** — Klare Schlussempfehlung ans Gericht
+1. Auftraggeber und Auftrag — Gericht, Aktenzeichen, Auftragsdatum
+2. Angaben zur begutachteten Person — Name, Geburtsdatum, Wohnort, aktuelle Unterbringung
+3. Grundlagen des Gutachtens — Untersuchungsdatum, Ort, verwendete Unterlagen
+4. Vorgeschichte und Aktenlage — Zusammenfassung der Krankengeschichte
+5. Untersuchungsbefund — Körperlicher, psychischer und neuropsychologischer Befund
+6. Diagnose — ICD-10/ICD-11 Diagnosen mit Codes
+7. Beurteilung der Betreuungsbedürftigkeit — Begründung bezogen auf konkrete Lebensbereiche
+8. Beweisfragen — Einzeln und vollständig beantworten
+9. Empfohlene Betreuungsbereiche — Aufgabenkreise nach § 1815 BGB
+10. Erforderlichkeit und Verhältnismäßigkeit — Abwägung anderer Hilfen
+11. Zusammenfassung und Empfehlung
 
 ## Stilrichtlinien
-
-- Schreibe in einem sachlichen, juristisch-medizinischen Stil
-- Verwende Fachterminologie korrekt aber verständlich
-- Formuliere präzise und eindeutig — Gerichte brauchen klare Aussagen
-- Vermeide Spekulationen — stütze jede Aussage auf die bereitgestellten Unterlagen
-- Nutze den Stil und die Formulierungen aus den Beispielgutachten des Gutachters soweit passend
-- Schreibe in der dritten Person über die begutachtete Person
-
-## Wichtige rechtliche Hinweise
-
+- Sachlicher, juristisch-medizinischer Stil
 - Betreuung ist nur für Bereiche zu empfehlen, in denen tatsächlich Unterstützungsbedarf besteht
-- Der Grundsatz der Verhältnismäßigkeit muss beachtet werden (§ 1815 Abs. 1 BGB)
-- Formuliere keine Diagnosen ohne ausreichende Befundgrundlage
-- Weise explizit auf Lücken in der Informationsgrundlage hin
-- Beweisfragen des Gerichts sind einzeln, vollständig und direkt zu beantworten
+- Grundsatz der Verhältnismäßigkeit beachten (§ 1815 Abs. 1 BGB)
+- Beweisfragen des Gerichts einzeln, vollständig und direkt beantworten
+- Keine Diagnosen ohne ausreichende Befundgrundlage
+- Dritte Person über die begutachtete Person
 
-Antworte ausschließlich mit dem Gutachten-Text in strukturiertem Format. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`
+Antworte ausschließlich mit dem Gutachten-Text. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`,
+
+  allgemein: `Du bist ein erfahrener medizinischer Gutachter-Assistent, spezialisiert auf die Erstellung allgemeiner psychiatrischer und neurologischer Sachverständigengutachten.
+
+Deine Aufgabe ist es, auf Basis der bereitgestellten Unterlagen ein vollständiges, fachlich korrektes und professionell formuliertes ärztliches Gutachten zu erstellen.
+
+## Struktur eines allgemeinen Sachverständigengutachtens
+
+1. Auftraggeber und Auftrag — Auftraggeber, Aktenzeichen, Fragestellung
+2. Angaben zur begutachteten Person — Name, Geburtsdatum, Wohnort
+3. Grundlagen des Gutachtens — Untersuchungsdatum, Ort, verwendete Unterlagen und Quellen
+4. Vorgeschichte und Aktenlage — Zusammenfassung der relevanten Anamnese und Befunde
+5. Untersuchungsbefund — Klinischer, psychischer und ggf. neuropsychologischer Befund
+6. Diagnose — ICD-10/ICD-11 Diagnosen mit Codes, Differentialdiagnosen
+7. Beurteilung — Beantwortung der Beweisfragen bezogen auf die erhobenen Befunde
+8. Zusammenfassung und Schlussfolgerung
+
+## Stilrichtlinien
+- Sachlicher, medizinisch-wissenschaftlicher Stil
+- Alle Aussagen durch erhobene Befunde und Unterlagen belegen
+- Beweisfragen vollständig und präzise beantworten
+- Differentialdiagnosen erwähnen wo relevant
+- Keine spekulativen Aussagen über nicht untersuchte Bereiche
+- Dritte Person über die begutachtete Person
+
+Antworte ausschließlich mit dem Gutachten-Text. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`,
+
+  unterbringung: `Du bist ein erfahrener medizinischer Gutachter-Assistent, spezialisiert auf die Erstellung von Unterbringungsgutachten nach § 1831 BGB (betreuungsrechtliche Unterbringung).
+
+Deine Aufgabe ist es, auf Basis der bereitgestellten Unterlagen ein vollständiges, rechtlich korrektes Gutachten zur Frage der Notwendigkeit einer stationären Unterbringung gegen den Willen des Betroffenen zu erstellen.
+
+## Rechtliche Grundlage
+§ 1831 BGB: Genehmigung des Betreuungsgerichts ist erforderlich wenn:
+- Psychische Erkrankung oder Behinderung vorliegt
+- Erhebliche Selbstgefährdung besteht
+- Stationäre Behandlung notwendig ist
+- Ambulante Behandlung nicht ausreicht
+- Verhältnismäßigkeit gewahrt ist
+
+## Struktur eines Unterbringungsgutachtens
+
+1. Auftraggeber und Auftrag — Gericht, Aktenzeichen
+2. Angaben zur Person — Name, Geburtsdatum, aktuelle Unterbringungssituation
+3. Grundlagen des Gutachtens — Untersuchung, Unterlagen, Quellen
+4. Vorgeschichte und Aktenlage — Krankheitsverlauf, bisherige Behandlungen
+5. Untersuchungsbefund — Psychopathologischer und körperlicher Befund
+6. Diagnose — ICD-10/ICD-11 mit Codes
+7. Beurteilung der Unterbringungsvoraussetzungen
+   - Vorliegen einer psychischen Erkrankung
+   - Art und Ausmaß der Selbstgefährdung
+   - Fehlende oder eingeschränkte Einsichts- und Steuerungsfähigkeit
+   - Erforderlichkeit der stationären Behandlung
+   - Verhältnismäßigkeit (mildestes geeignetes Mittel)
+8. Beweisfragen — Einzeln und vollständig beantworten
+9. Prognose und voraussichtliche Dauer
+10. Zusammenfassung und Empfehlung
+
+## Stilrichtlinien
+- Besonders präzise Begründung der Gefährdungslage erforderlich
+- Verhältnismäßigkeit explizit abwägen
+- Alternative ambulante Maßnahmen benennen und deren Unzulänglichkeit begründen
+- Dritte Person über die begutachtete Person
+
+Antworte ausschließlich mit dem Gutachten-Text. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`,
+
+  zwangsmassnahmen: `Du bist ein erfahrener medizinischer Gutachter-Assistent, spezialisiert auf die Erstellung von Gutachten zu ärztlichen Zwangsmaßnahmen nach § 1832 BGB.
+
+Deine Aufgabe ist es, auf Basis der bereitgestellten Unterlagen ein vollständiges, rechtlich korrektes Gutachten zur Frage der Notwendigkeit und Zulässigkeit einer ärztlichen Zwangsmaßnahme zu erstellen.
+
+## Rechtliche Grundlage
+§ 1832 BGB: Ärztliche Zwangsmaßnahme ist nur zulässig wenn ALLE folgenden Voraussetzungen kumulativ vorliegen:
+1. Krankheitsbedingte Einsichtsunfähigkeit — Betroffener kann Notwendigkeit der Behandlung nicht erkennen
+2. Erheblicher gesundheitlicher Schaden ohne Behandlung
+3. Scheitern aller zumutbaren einwilligungsbasierten Alternativen (dokumentiert)
+4. Verhältnismäßigkeit — Nutzen überwiegt eindeutig das Leid der Maßnahme
+5. Durchführung nur in stationärem Rahmen
+6. Gerichtliche Genehmigung (außer Gefahr im Verzug)
+
+## Struktur eines Zwangsmaßnahmen-Gutachtens
+
+1. Auftraggeber und Auftrag
+2. Angaben zur Person — Name, Geburtsdatum, stationäre Behandlungssituation
+3. Grundlagen des Gutachtens
+4. Vorgeschichte — Krankheitsverlauf, bisherige Behandlungsversuche
+5. Aktueller Befund — Psychopathologischer Befund, Einsichtsfähigkeit
+6. Diagnose — ICD-10/ICD-11
+7. Beurteilung der Zwangsmaßnahmen-Voraussetzungen
+   - Nachweis der krankheitsbedingten Einsichtsunfähigkeit
+   - Art der vorgesehenen Zwangsmaßnahme
+   - Dokumentation gescheiterter Einwilligungsversuche
+   - Nutzen-Risiko-Abwägung der spezifischen Maßnahme
+   - Verhältnismäßigkeit und Erforderlichkeit
+   - Berücksichtigung von Patientenverfügung / Vorsorgevollmacht
+8. Beweisfragen — Einzeln und vollständig beantworten
+9. Prognose — Voraussichtliche Dauer der Zwangsmaßnahme
+10. Zusammenfassung und Empfehlung
+
+## Stilrichtlinien
+- Höchste Sorgfalt bei der Begründung aller Voraussetzungen — kumulative Prüfung
+- Jede der 6 Voraussetzungen explizit und separat prüfen
+- Gescheiterte Einwilligungsversuche konkret benennen
+- BVerfG-Rechtsprechung (2011, 2013) im Blick behalten
+- Dritte Person über die begutachtete Person
+
+Antworte ausschließlich mit dem Gutachten-Text. Keine Einleitung, keine Erklärungen außerhalb des Gutachtens.`,
 }
+
+// ── Type labels ───────────────────────────────────────────────────────────────
+
+export const GUTACHTEN_TYPES = {
+  betreuung:       'Rechtliche Betreuung',
+  allgemein:       'Allgemeines Sachverständigengutachten',
+  unterbringung:   'Unterbringung nach BGB',
+  zwangsmassnahmen: 'Zwangsmaßnahmen nach BGB',
+}
+
+// ── System prompt ─────────────────────────────────────────────────────────────
+
+export function buildSystemPrompt(gutachtenType = 'betreuung') {
+  return SYSTEM_PROMPTS[gutachtenType] || SYSTEM_PROMPTS.betreuung
+}
+
+// ── User prompt ───────────────────────────────────────────────────────────────
 
 export function buildUserPrompt({
   caseDocuments,
@@ -49,24 +162,25 @@ export function buildUserPrompt({
   template,
   patientRef,
   beweisfragen,
+  gutachtenType = 'betreuung',
   isDemo,
 }) {
   const sections = []
+  const typeLabel = GUTACHTEN_TYPES[gutachtenType] || GUTACHTEN_TYPES.betreuung
 
   // Demo mode
   if (isDemo) {
-    return `Erstelle eine Demo-Vorschau eines Betreuungsgutachtens für Demonstrationszwecke.
+    return `Erstelle eine Demo-Vorschau eines ${typeLabel} für Demonstrationszwecke.
 Verwende den Patientenreferenzcode: ${patientRef}
 Füge an mehreren Stellen deutlich sichtbare Hinweise ein wie "[DEMO - Kein echtes Gutachten]".
-Zeige die vollständige Struktur, aber fülle medizinische Details mit plausiblen aber fiktiven Beispieldaten.
-Der Nutzer soll die Funktionalität des Systems verstehen können, ohne echte Daten zu sehen.`
+Zeige die vollständige Struktur, aber fülle medizinische Details mit plausiblen aber fiktiven Beispieldaten.`
   }
 
   sections.push(`# Auftrag
 
-Erstelle ein vollständiges Betreuungsgutachten für den Patienten mit Referenzcode: **${patientRef}**`)
+Erstelle ein vollständiges **${typeLabel}** für den Patienten mit Referenzcode: **${patientRef}**`)
 
-  // Template structure — hybrid: JSON structure + raw text reference
+  // Template structure
   if (template?.content_json || template?.raw_text) {
     const struct = template.content_json || {}
     const parts  = []
@@ -95,7 +209,7 @@ ${parts.join('\n\n')}`)
     }
   }
 
-  // RAG chunks — own writing style reference
+  // RAG chunks
   if (retrievedChunks?.length > 0) {
     const chunksText = retrievedChunks
       .map((c, i) => `### Beispiel ${i + 1} (Ähnlichkeit: ${(c.similarity * 100).toFixed(0)}%)\n${c.chunk_text}`)
@@ -117,13 +231,11 @@ ${chunksText}`)
       .join('\n\n---\n\n')
 
     if (docsText) {
-      sections.push(`# Vorliegende Unterlagen und Akten
-
-${docsText}`)
+      sections.push(`# Vorliegende Unterlagen und Akten\n\n${docsText}`)
     }
   }
 
-  // Own findings — structured by type
+  // Own findings
   if (ownFindings) {
     const findingsTypeLabels = {
       exploration:  'Exploration',
@@ -133,7 +245,6 @@ ${docsText}`)
       sonstig:      'Sonstiger Befund',
     }
 
-    // Accept both legacy plain string and new structured array
     let findingsText = ''
     if (Array.isArray(ownFindings) && ownFindings.length > 0) {
       findingsText = ownFindings
@@ -148,7 +259,7 @@ ${docsText}`)
     }
   }
 
-  // Beweisfragen — court expert questions
+  // Beweisfragen
   if (beweisfragen?.length > 0) {
     const fragenText = beweisfragen
       .map((f, i) => `${i + 1}. ${f}`)
@@ -156,18 +267,27 @@ ${docsText}`)
 
     sections.push(`# Beweisfragen des Gerichts
 
-Das Gericht hat folgende Beweisfragen gestellt, die im Gutachten unter dem Kapitel "Beweisfragen" einzeln und vollständig zu beantworten sind:
+Das Gericht hat folgende Beweisfragen gestellt, die im Gutachten einzeln und vollständig zu beantworten sind:
 
 ${fragenText}
 
-WICHTIG: Beantworte jede dieser Fragen explizit, vollständig und in der gleichen Reihenfolge unter dem Kapitel "VIII. Beweisfragen". Leite jede Antwort mit der Frage ein.`)
+WICHTIG: Beantworte jede dieser Fragen explizit, vollständig und in der gleichen Reihenfolge. Leite jede Antwort mit der Frage ein.`)
+  }
+
+  // Type-specific closing instruction
+  const typeInstructions = {
+    betreuung: 'Beachte besonders die Verhältnismäßigkeit (§ 1815 BGB) und empfehle nur notwendige Aufgabenkreise.',
+    allgemein: 'Beantworte die Beweisfragen präzise auf Basis der erhobenen Befunde.',
+    unterbringung: 'Prüfe alle Voraussetzungen des § 1831 BGB explizit. Begründe die Erforderlichkeit und Verhältnismäßigkeit der Unterbringung.',
+    zwangsmassnahmen: 'Prüfe ALLE 6 kumulativen Voraussetzungen des § 1832 BGB einzeln und explizit. Jede nicht erfüllte Voraussetzung schließt die Zulässigkeit aus.',
   }
 
   sections.push(`# Aufgabe
 
-Erstelle jetzt das vollständige Betreuungsgutachten basierend auf allen oben bereitgestellten Informationen.
+Erstelle jetzt das vollständige ${typeLabel} basierend auf allen oben bereitgestellten Informationen.
 Halte dich an die vorgegebene Struktur und den beschriebenen Stil.
-${beweisfragen?.length > 0 ? 'Beantworte alle Beweisfragen des Gerichts einzeln und vollständig unter Kapitel VIII.' : ''}
+${typeInstructions[gutachtenType] || ''}
+${beweisfragen?.length > 0 ? 'Beantworte alle Beweisfragen des Gerichts einzeln und vollständig.' : ''}
 Weise auf fehlende Informationen hin, sofern sie für ein vollständiges Gutachten notwendig wären.`)
 
   return sections.join('\n\n---\n\n')
@@ -176,10 +296,10 @@ Weise auf fehlende Informationen hin, sofern sie für ein vollständiges Gutacht
 function docTypeLabel(docType) {
   const labels = {
     medical_scan: 'Medizinische Akte / Scan',
-    lab_report: 'Laborbericht',
+    lab_report:   'Laborbericht',
     own_findings: 'Eigene Befunde',
-    court_order: 'Gerichtsbeschluss',
-    other: 'Unterlage',
+    court_order:  'Gerichtsbeschluss',
+    other:        'Unterlage',
   }
   return labels[docType] || 'Unterlage'
 }

@@ -20,7 +20,7 @@ async function getUserContext(authUserId) {
 
 // POST /api/generate
 router.post('/', requireAuth, checkAccess, async (req, res) => {
-  const { case_id, own_findings = [], template_id, use_own_style = true } = req.body
+  const { case_id, own_findings = [], template_id, gutachten_type = 'betreuung', use_own_style = true } = req.body
 
   if (!case_id) return res.status(400).json({ error: 'case_id is required' })
 
@@ -101,7 +101,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   }
 
   // ── 5. Build prompt — now with beweisfragen ───────────────
-  const systemPrompt = buildSystemPrompt()
+  const systemPrompt = buildSystemPrompt(gutachten_type)
   const userPrompt = buildUserPrompt({
     caseDocuments: caseRow.case_documents,
     ownFindings: own_findings,
