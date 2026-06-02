@@ -6,6 +6,7 @@ import orgsRouter from './routes/orgs.js'
 import uploadsRouter from './routes/uploads.js'
 import casesRouter from './routes/cases.js'
 import verificationRouter from './routes/verification.js'
+import referralRouter from './routes/referral.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
@@ -53,6 +54,7 @@ app.use('/api/orgs',           orgsRouter)
 app.use('/api/uploads',        uploadsRouter)
 app.use('/api/cases',          casesRouter)
 app.use('/api/verification',   verificationRouter)
+app.use('/api/referral',        referralRouter)
 app.use('/api/generate',       generateRouter)
 app.use('/api/export',         exportRouter)
 app.use('/api/profile',        profileRouter)

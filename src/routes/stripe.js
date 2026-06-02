@@ -1,4 +1,5 @@
 import express from 'express'
+import { applyReferralReward } from './referral.js'
 import { stripe, PLANS } from '../lib/stripeClient.js'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -214,6 +215,32 @@ async function handleStripeEvent(event) {
             .eq('org_id', orgId)
           await auditLog(orgId, null, 'subscription.unit_purchased', 'subscriptions', null, { plan })
         }
+      }
+
+      // Trigger referral reward if this is the referred user's first payment
+      try {
+        const { data: profile } = await supabaseAdmin
+          .from('profiles')
+          .select('id, referred_by_profile_id')
+          .eq('org_id', orgId)
+          .single()
+
+        if (profile?.referred_by_profile_id) {
+          const { data: referral } = await supabaseAdmin
+            .from('referrals')
+            .select('id, status')
+            .eq('referred_id', profile.id)
+            .eq('status', 'pending')
+            .single()
+
+          if (referral) {
+            applyReferralReward(referral.id).catch(err =>
+              console.error('[REFERRAL] Reward trigger failed:', err.message)
+            )
+          }
+        }
+      } catch (err) {
+        console.error('[REFERRAL] Reward check failed:', err.message)
       }
       break
     }
