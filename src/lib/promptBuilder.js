@@ -223,15 +223,43 @@ Die folgenden Textausschnitte stammen aus früheren Gutachten dieses Gutachters.
 ${chunksText}`)
   }
 
-  // Case documents
+  // Case documents — split into own findings (priority) and external sources
   if (caseDocuments?.length > 0) {
-    const docsText = caseDocuments
-      .filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
-      .map(d => `### ${docTypeLabel(d.doc_type)}: ${d.file_name}\n\n${d.extracted_text}`)
-      .join('\n\n---\n\n')
+    const ownTypes = ['exploration', 'untersuchung', 'amdp', 'anamnese', 'sonstig', 'own_findings']
+    const ready    = caseDocuments.filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
 
-    if (docsText) {
-      sections.push(`# Vorliegende Unterlagen und Akten\n\n${docsText}`)
+    const ownDocs = ready.filter(d => ownTypes.includes(d.doc_type))
+    const extDocs = ready.filter(d => !ownTypes.includes(d.doc_type))
+
+    const typeLabels = {
+      exploration:  'Exploration',
+      untersuchung: 'Untersuchung',
+      amdp:         'AMDP-Befund',
+      anamnese:     'Fremd-/Anamnese',
+      sonstig:      'Sonstiger Befund',
+      own_findings: 'Eigene Befunde',
+    }
+
+    if (ownDocs.length > 0) {
+      const ownText = ownDocs
+        .map((d, i) => `### B${i + 1} — ${typeLabels[d.doc_type] || d.doc_type}: ${d.file_name}\n\n${d.extracted_text}`)
+        .join('\n\n---\n\n')
+      sections.push(`# Eigene Untersuchungsbefunde des Gutachters (PRIORITÄT)
+
+WICHTIG: Die folgenden Befunde wurden vom Sachverständigen persönlich erhoben. Sie sind verbindlich und müssen wortgetreu und vollständig in das Gutachten übernommen werden. Sie haben höchste Priorität gegenüber allen anderen Unterlagen.
+
+${ownText}`)
+    }
+
+    if (extDocs.length > 0) {
+      const extText = extDocs
+        .map((d, i) => `### Q${i + 1} — ${docTypeLabel(d.doc_type)}: ${d.file_name}\n\n${d.extracted_text}`)
+        .join('\n\n---\n\n')
+      sections.push(`# Vorliegende Fremdunterlagen und Akten
+
+Die folgenden Unterlagen stammen aus externen Quellen und dienen als Referenz. Sie sind nach fachlichem Ermessen zu würdigen.
+
+${extText}`)
     }
   }
 

@@ -329,6 +329,97 @@ router.delete('/case-document/:id', requireAuth, async (req, res) => {
 })
 
 
+// POST /api/uploads/own-finding
+// Upload or save a text-based own finding as a case_document
+// Body (multipart or JSON): case_id, doc_type, text? (for text input), file? (for upload)
+router.post('/own-finding', requireAuth, upload.single('file'), async (req, res) => {
+  const { case_id, doc_type, text } = req.body
+
+  if (!case_id) return res.status(400).json({ error: 'case_id required' })
+
+  const validTypes = ['exploration', 'untersuchung', 'amdp', 'anamnese', 'sonstig']
+  if (!validTypes.includes(doc_type)) {
+    return res.status(400).json({ error: `Invalid doc_type. Must be one of: ${validTypes.join(', ')}` })
+  }
+
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(400).json({ error: 'User has no organisation' })
+
+  // Verify case belongs to org
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id')
+    .eq('id', case_id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  const typeLabels = {
+    exploration:  'Exploration',
+    untersuchung: 'Untersuchung',
+    amdp:         'AMDP-Befund',
+    anamnese:     'Fremd-/Anamnese',
+    sonstig:      'Sonstiger Befund',
+  }
+
+  if (req.file) {
+    // File upload path — same as case document
+    const ext         = req.file.originalname.split('.').pop()
+    const storagePath = `${profile.org_id}/${case_id}/${randomUUID()}.${ext}`
+
+    const { error: storageError } = await supabaseAdmin.storage
+      .from('case-documents')
+      .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype })
+
+    if (storageError) throw storageError
+
+    const { data: doc, error: dbError } = await supabaseAdmin
+      .from('case_documents')
+      .insert({
+        case_id,
+        org_id:       profile.org_id,
+        file_name:    `${typeLabels[doc_type]}: ${req.file.originalname}`,
+        storage_path: storagePath,
+        doc_type,
+        status:       'pending',
+      })
+      .select()
+      .single()
+
+    if (dbError) throw dbError
+    res.status(201).json({ document: doc })
+
+    // Process with Claude OCR
+    processCaseDocument(doc.id).catch(err =>
+      console.error('[OCR] Unhandled error:', err)
+    )
+
+  } else if (text?.trim()) {
+    // Text input path — store directly as extracted_text, no file needed
+    const { data: doc, error: dbError } = await supabaseAdmin
+      .from('case_documents')
+      .insert({
+        case_id,
+        org_id:         profile.org_id,
+        file_name:      `${typeLabels[doc_type]} (Texteingabe)`,
+        storage_path:   null,
+        doc_type,
+        status:         'ready',
+        extracted_text: text.trim(),
+      })
+      .select()
+      .single()
+
+    if (dbError) throw dbError
+    res.status(201).json({ document: doc })
+
+  } else {
+    res.status(400).json({ error: 'Either file or text is required' })
+  }
+})
+
+
 export default router
 
 
