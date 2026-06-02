@@ -2,7 +2,7 @@ import { Resend } from 'resend'
 
 const resend = new Resend(process.env.RESEND_API_KEY)
 
-const FROM = 'exart.io <noreply@mail.exart.io>'
+const FROM = 'exart.io <noreply@exart.io>'
 const ADMIN_EMAIL = 'k.schlaaff@posteo.de'
 
 // ── Verification notification to admin ───────────────────────
