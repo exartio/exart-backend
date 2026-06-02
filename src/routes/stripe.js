@@ -50,14 +50,31 @@ router.post('/checkout', requireAuth, async (req, res) => {
   const planConfig = PLANS[plan]
   const isOneTime = planConfig.type === 'one_time'
 
-  const session = await stripe.checkout.sessions.create({
+  // Payment methods:
+  // - card: always available
+  // - paypal: supported for both subscription and one-time in DE
+  // - klarna: only for one-time payments (does not support subscriptions)
+  const paymentMethods = isOneTime
+    ? ['card', 'paypal', 'klarna']
+    : ['card', 'paypal']
+
+  const sessionParams = {
     customer: customerId,
     line_items: [{ price: planConfig.priceId, quantity: 1 }],
     mode: isOneTime ? 'payment' : 'subscription',
+    payment_method_types: paymentMethods,
     success_url: `${process.env.FRONTEND_URL}/dashboard?subscribed=true`,
     cancel_url: `${process.env.FRONTEND_URL}/#preise`,
     metadata: { supabase_org_id: member.org_id, plan },
-  })
+    locale: 'de',
+  }
+
+  // Klarna requires billing address collection
+  if (isOneTime) {
+    sessionParams.billing_address_collection = 'required'
+  }
+
+  const session = await stripe.checkout.sessions.create(sessionParams)
 
   res.json({ url: session.url })
 })
