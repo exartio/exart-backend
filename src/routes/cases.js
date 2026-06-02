@@ -22,7 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: cases, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, patient_ref, title, status, statement_ids, beweisfragen, created_at, updated_at,
+      id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, created_at, updated_at,
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )
@@ -181,5 +181,71 @@ router.patch('/:id/statements', requireAuth, async (req, res) => {
   if (error) throw error
   res.json({ case: updated })
 })
+
+// DELETE /api/cases/:id
+// Deletes a case and all associated documents, outputs and storage files
+router.delete('/:id', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
+
+  // Verify ownership
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id, org_id')
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  // Delete case documents from storage
+  const { data: docs } = await supabaseAdmin
+    .from('case_documents')
+    .select('storage_path')
+    .eq('case_id', req.params.id)
+
+  if (docs?.length > 0) {
+    const paths = docs.map(d => d.storage_path).filter(Boolean)
+    if (paths.length > 0) {
+      await supabaseAdmin.storage.from('case-documents').remove(paths)
+    }
+  }
+
+  // Delete exported files from storage
+  const { data: exports } = await supabaseAdmin
+    .from('exports')
+    .select('storage_path')
+    .eq('case_id', req.params.id)
+
+  if (exports?.length > 0) {
+    const paths = exports.map(e => e.storage_path).filter(Boolean)
+    if (paths.length > 0) {
+      await supabaseAdmin.storage.from('exports').remove(paths)
+    }
+  }
+
+  // Delete court order from storage if exists
+  const { data: fullCase } = await supabaseAdmin
+    .from('cases')
+    .select('gerichtsbeschluss_storage_path')
+    .eq('id', req.params.id)
+    .single()
+
+  if (fullCase?.gerichtsbeschluss_storage_path) {
+    await supabaseAdmin.storage
+      .from('case-documents')
+      .remove([fullCase.gerichtsbeschluss_storage_path])
+  }
+
+  // Delete case (cascades to case_documents, generated_outputs, exports via FK)
+  await supabaseAdmin
+    .from('cases')
+    .delete()
+    .eq('id', req.params.id)
+
+  console.log(`[CASE] Deleted case ${req.params.id} for org ${profile.org_id}`)
+  res.json({ message: 'Case deleted' })
+})
+
 
 export default router

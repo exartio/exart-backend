@@ -30,15 +30,17 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   const isDemo = req.accessLevel !== 'full'
 
 
-  // ── Quota check ───────────────────────────────────────────
-  const quota = await checkGenerationQuota(profile.org_id)
-  if (!quota.allowed && !isDemo) {
-    return res.status(402).json({
-      error: 'Generation quota exceeded',
-      reason: quota.reason,
-      used: quota.used,
-      limit: quota.limit,
-    })
+  // ── Generation quota check (per case) ───────────────────
+  if (!isDemo) {
+    const genQuota = await checkGenerationQuota(case_id)
+    if (!genQuota.allowed) {
+      return res.status(402).json({
+        error: `Generierungslimit für diesen Fall erreicht (${genQuota.count}/${genQuota.max}). Bitte erstellen Sie einen neuen Fall oder wechseln Sie zur Expert-Lizenz für mehr Generierungen.`,
+        reason: genQuota.reason,
+        count: genQuota.count,
+        max: genQuota.max,
+      })
+    }
   }
 
   // ── 1. Load case — now including beweisfragen ─────────────
@@ -187,10 +189,10 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
 
     console.log(`[GEN] Completed generation for case ${case_id}, output ${output.id}`)
 
-    // Increment quota counter after successful generation
+    // Increment per-case generation counter
     if (!isDemo) {
-      incrementGenerationQuota(profile.org_id).catch(err =>
-        console.error('[QUOTA] Increment failed:', err.message)
+      incrementGenerationQuota(case_id).catch(err =>
+        console.error('[QUOTA] Generation increment failed:', err.message)
       )
     }
 
