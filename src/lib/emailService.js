@@ -193,7 +193,7 @@ export async function sendVerificationApproved({ fullName, email }) {
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
             <tr><td style="background:#b89a5e;border-radius:4px;">
-              <a href="https://exart-io.webflow.io/dashboard"
+              <a href="${process.env.FRONTEND_URL || 'https://exart.io'}/dashboard"
                  style="display:inline-block;padding:11px 22px;font-size:13px;font-weight:500;color:#1a2640;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
                 Zum Dashboard →
               </a>

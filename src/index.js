@@ -9,7 +9,7 @@ import verificationRouter from './routes/verification.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
-import subscriptionsRouter from './routes/subscriptions.js'
+import subscriptionsRouter, { checkGenerationQuota, incrementGenerationQuota } from './routes/subscriptions.js'
 import templatesRouter from './routes/templates.js'
 
 // ── Catch unhandled rejections before they crash the process ──
@@ -33,7 +33,10 @@ const app = express()
 // CORS
 app.use(cors({
   origin: [
-    'https://exart-io.webflow.io',
+    process.env.FRONTEND_URL || 'https://exart.io',
+    'https://exart.io',
+    'https://www.exart.io',
+    'https://exart-io.webflow.io',  // keep during transition
     'https://exart.io',
     'http://localhost:3000'
   ],
