@@ -8,6 +8,7 @@ import casesRouter from './routes/cases.js'
 import verificationRouter from './routes/verification.js'
 import referralRouter from './routes/referral.js'
 import abrechnungRouter from './routes/abrechnung.js'
+import adminRouter from './routes/admin-metrics.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
@@ -57,6 +58,7 @@ app.use('/api/cases',          casesRouter)
 app.use('/api/verification',   verificationRouter)
 app.use('/api/referral',        referralRouter)
 app.use('/api/abrechnung',      abrechnungRouter)
+app.use('/api/admin',           adminRouter)
 app.use('/api/generate',       generateRouter)
 app.use('/api/export',         exportRouter)
 app.use('/api/profile',        profileRouter)
