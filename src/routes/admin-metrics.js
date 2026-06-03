@@ -53,7 +53,7 @@ router.get('/metrics', requireAdmin, async (req, res) => {
   const [backendPing, frontendPing, supabasePing] = await Promise.all([
     ping(`${process.env.RENDER_EXTERNAL_URL || 'https://exart-backend.onrender.com'}/health`, 'Backend (Render)'),
     ping('https://exart.io', 'Frontend (Webflow)'),
-    ping(`${process.env.SUPABASE_URL}/rest/v1/`, 'Datenbank (Supabase)'),
+    ping(`${process.env.SUPABASE_URL}/rest/v1/?apikey=${process.env.SUPABASE_KEY}`, 'Datenbank (Supabase)'),
   ])
 
   // ── Users & verification ───────────────────────────────────────────────────
@@ -165,6 +165,105 @@ router.get('/metrics', requireAdmin, async (req, res) => {
     count('referrals', { status: 'rewarded' }),
   ])
 
+  // ── Error & system health ─────────────────────────────────────────────────
+  const { count: docsError } = await supabaseAdmin
+    .from('case_documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'error')
+
+  const { count: docsProcessing } = await supabaseAdmin
+    .from('case_documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'processing')
+
+  const { count: docsTotal } = await supabaseAdmin
+    .from('case_documents')
+    .select('id', { count: 'exact', head: true })
+    .neq('status', 'pending')
+
+  const { count: genErrors } = await supabaseAdmin
+    .from('audit_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('action', 'output.generation_error')
+    .gte('created_at', month)
+
+  // Check for stale processing docs (stuck > 10 min)
+  const tenMinAgo = new Date(now - 10 * 60 * 1000).toISOString()
+  const { count: stuckDocs } = await supabaseAdmin
+    .from('case_documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'processing')
+    .lt('created_at', tenMinAgo)
+
+  // ── Funnel / conversion ───────────────────────────────────────────────────
+  // Verified but no active subscription (warm leads)
+  const { data: verifiedProfiles } = await supabaseAdmin
+    .from('profiles')
+    .select('org_id')
+    .eq('verification_status', 'verified')
+
+  const verifiedOrgIds = verifiedProfiles?.map(p => p.org_id).filter(Boolean) || []
+  let verifiedNoSub = 0
+  if (verifiedOrgIds.length > 0) {
+    const { count: verifiedWithSub } = await supabaseAdmin
+      .from('subscriptions')
+      .select('id', { count: 'exact', head: true })
+      .in('org_id', verifiedOrgIds)
+      .eq('status', 'active')
+    verifiedNoSub = verifiedOrgIds.length - (verifiedWithSub || 0)
+  }
+
+  // Registered but not verified
+  const { count: registeredNotVerified } = await supabaseAdmin
+    .from('profiles')
+    .select('id', { count: 'exact', head: true })
+    .eq('verification_status', 'pending')
+
+  // Solo users who hit their monthly quota (upgrade signals)
+  const { data: soloSubs } = await supabaseAdmin
+    .from('subscriptions')
+    .select('monthly_count, addon_unit_count')
+    .eq('plan', 'solo')
+    .eq('status', 'active')
+
+  const quotaExhausted = soloSubs?.filter(s =>
+    (s.monthly_count || 0) >= (5 + (s.addon_unit_count || 0))
+  ).length || 0
+
+  // ── Usage quality ─────────────────────────────────────────────────────────
+  // Avg generations per case
+  const { data: caseGenCounts } = await supabaseAdmin
+    .from('cases')
+    .select('generation_count')
+    .gt('generation_count', 0)
+
+  const avgGenPerCase = caseGenCounts?.length > 0
+    ? (caseGenCounts.reduce((s, c) => s + (c.generation_count || 0), 0) / caseGenCounts.length).toFixed(1)
+    : 0
+
+  // Export rate (exports / real generations)
+  const realGens = totalGenerations - (demoGenerations || 0)
+  const exportRate = realGens > 0
+    ? Math.round((totalExports / realGens) * 100)
+    : 0
+
+  // Churn: subscriptions cancelled this month
+  let churnCount = 0
+  let arrEur = 0
+  let soloCount = 0
+  let expertCount = 0
+  try {
+    const cancelled = await stripe.subscriptions.list({
+      status: 'canceled',
+      created: { gte: Math.floor(new Date(now.getFullYear(), now.getMonth(), 1).getTime() / 1000) },
+      limit: 100,
+    })
+    churnCount = cancelled.data.length
+    arrEur = Math.round(mrr * 12 * 100) / 100
+    soloCount = activeSubs.filter(s => s.plan?.includes('solo')).length
+    expertCount = activeSubs.filter(s => s.plan?.includes('expert')).length
+  } catch(e) { /* stripe already handled */ }
+
   // ── Assemble response ──────────────────────────────────────────────────────
   res.json({
     timestamp: now.toISOString(),
@@ -208,6 +307,32 @@ router.get('/metrics', requireAdmin, async (req, res) => {
     referrals: {
       total:    totalReferrals,
       rewarded: rewardedReferrals,
+    },
+    health: {
+      docs_error:      docsError || 0,
+      docs_processing: docsProcessing || 0,
+      docs_total:      docsTotal || 0,
+      stuck_docs:      stuckDocs || 0,
+      gen_errors_month: genErrors || 0,
+      ocr_error_rate:  docsTotal > 0 ? Math.round(((docsError || 0) / docsTotal) * 100) : 0,
+    },
+    funnel: {
+      registered:           totalUsers,
+      verified:             verifiedUsers,
+      subscribed:           activeSubs.length,
+      verified_no_sub:      verifiedNoSub,
+      registered_not_verified: registeredNotVerified,
+      solo_quota_exhausted: quotaExhausted,
+      conversion_reg_to_verified: totalUsers > 0 ? Math.round((verifiedUsers / totalUsers) * 100) : 0,
+      conversion_verified_to_sub: verifiedUsers > 0 ? Math.round((activeSubs.length / verifiedUsers) * 100) : 0,
+    },
+    quality: {
+      avg_gen_per_case: avgGenPerCase,
+      export_rate_pct:  exportRate,
+      churn_month:      churnCount,
+      arr_eur:          arrEur,
+      solo_count:       soloCount,
+      expert_count:     expertCount,
     },
   })
 })
