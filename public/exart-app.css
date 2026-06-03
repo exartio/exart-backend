@@ -560,6 +560,15 @@ body.app-page { background: var(--cream); }
 .w-embed { max-width: none; width: 100%; }
 @media screen and (max-width: 991px) { .w-container { max-width: none; } }
 
+/* ── Format toolbar active state ── */
+.fmt-btn.active { background: var(--navy); color: #fff; }
+
+/* ── Autosave indicator states ── */
+#autosave-indicator.saving { color: var(--gold); }
+#autosave-indicator.saved  { color: #2e7d32; }
+#autosave-indicator.error  { color: var(--error); }
+#autosave-indicator        { color: var(--text-light); }
+
 /* ── Main content ── */
 .main-content { flex: 1; min-width: 0; overflow: auto; padding: 2rem; max-width: 1200px; }
 .main-content-wide { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
