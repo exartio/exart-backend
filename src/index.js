@@ -9,6 +9,7 @@ import verificationRouter from './routes/verification.js'
 import referralRouter from './routes/referral.js'
 import abrechnungRouter from './routes/abrechnung.js'
 import adminRouter from './routes/admin-metrics.js'
+import { runDeadlineReminders } from './jobs/deadlineReminder.js'
 import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
@@ -84,4 +85,22 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`exart.io API running on port ${PORT}`)
+
+  // Daily deadline reminder — runs at 08:00 server time
+  function scheduleDailyReminder() {
+    const now  = new Date()
+    const next = new Date(now)
+    next.setHours(8, 0, 0, 0)
+    if (next <= now) next.setDate(next.getDate() + 1)
+    const msUntil = next - now
+    console.log(`[DEADLINE] Next reminder check in ${Math.round(msUntil / 60000)} minutes`)
+    setTimeout(() => {
+      runDeadlineReminders().catch(err => console.error('[DEADLINE] Error:', err.message))
+      setInterval(() => {
+        runDeadlineReminders().catch(err => console.error('[DEADLINE] Error:', err.message))
+      }, 24 * 60 * 60 * 1000)
+    }, msUntil)
+  }
+
+  scheduleDailyReminder()
 })

@@ -1,6 +1,6 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
-import { sendVerificationApproved } from '../lib/emailService.js'
+import { sendVerificationApproved, sendWelcomeEmail } from '../lib/emailService.js'
 
 const router = express.Router()
 
