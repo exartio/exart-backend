@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@supabase/supabase-js": "^2.45.0",
+    "archiver": "^8.0.0",
     "cors": "^2.8.5",
     "docx": "^8.5.0",
     "dotenv": "^16.4.0",
