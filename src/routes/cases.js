@@ -24,7 +24,10 @@ router.get('/', requireAuth, async (req, res) => {
     .select(`
       id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, betroffener_name, betroffener_dob, betroffener_adresse, created_at, updated_at,
       case_documents ( id, doc_type, status, ignored ),
-      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot )
+      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot ),
+      created_by ( id, full_name ),
+      assigned_to ( id, full_name ),
+      templates ( id, name )
     `)
     .eq('org_id', profile.org_id)
     .order('updated_at', { ascending: false })
@@ -42,14 +45,11 @@ router.get('/:id', requireAuth, async (req, res) => {
   const { data: caseRow, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, org_id, title, patient_ref, status, template_id,
-      aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum,
-      abgabefrist, honorar_erwartung, submitted_at,
-      betroffener_name, betroffener_dob, betroffener_adresse,
-      beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
-      gerichtsbeschluss_storage_path, statement_ids,
-      generation_count, max_generations, created_at, updated_at,
-      case_documents ( id, file_name, doc_type, status, extracted_text, ignored, storage_path ),
+      *,
+      created_by ( id, full_name, title ),
+      assigned_to ( id, full_name, title ),
+      templates ( id, name, content_json ),
+      case_documents ( * ),
       generated_outputs ( id, version, is_demo, output_status, created_at, prompt_snapshot )
     `)
     .eq('id', req.params.id)
@@ -108,7 +108,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.status(404).json({ error: 'Case not found' })
 
-  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref', 'beweisfragen']
+  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref', 'beweisfragen', 'aktenzeichen', 'gericht', 'richter', 'beschlussdatum', 'beauftragungsdatum', 'abgabefrist', 'honorar_erwartung', 'submitted_at', 'betroffener_name', 'betroffener_dob', 'betroffener_adresse']
   const updates = Object.fromEntries(
     Object.entries(req.body).filter(([k]) => allowed.includes(k))
   )
@@ -221,6 +221,39 @@ router.post('/:id/submit', requireAuth, async (req, res) => {
   })
 
   console.log(`[CASE] Submitted case ${req.params.id} at ${data.submitted_at}`)
+  res.json({ case: data })
+})
+
+
+// POST /api/cases/:id/submit
+router.post('/:id/submit', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id, status')
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  const { data, error } = await supabaseAdmin
+    .from('cases')
+    .update({ status: 'submitted', submitted_at: new Date().toISOString() })
+    .eq('id', req.params.id)
+    .select('id, status, submitted_at')
+    .single()
+
+  if (error) throw error
+
+  await supabaseAdmin.from('audit_log').insert({
+    org_id: profile.org_id, user_id: req.user.id,
+    action: 'case.submitted', entity_type: 'cases', entity_id: req.params.id,
+    metadata: { submitted_at: data.submitted_at },
+  })
+
   res.json({ case: data })
 })
 
