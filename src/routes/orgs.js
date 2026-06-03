@@ -31,7 +31,6 @@ router.get('/me', requireAuth, async (req, res) => {
 
   if (error) throw error
 
-  // Check subscription status for accessLevel
   const { data: sub } = await supabaseAdmin
     .from('subscriptions')
     .select('status, plan')
@@ -49,7 +48,6 @@ router.get('/me', requireAuth, async (req, res) => {
 })
 
 // PATCH /api/orgs/me
-// Update org name, address, footer_settings
 router.patch('/me', requireAuth, async (req, res) => {
   const { data: member } = await supabaseAdmin
     .from('organization_members')
@@ -76,68 +74,63 @@ router.patch('/me', requireAuth, async (req, res) => {
 })
 
 // GET /api/orgs/members
-// Returns all members of the user's organisation with profile and auth data
 router.get('/members', requireAuth, async (req, res) => {
-  const { data: member } = await supabaseAdmin
+  // Find the caller's org
+  const { data: caller } = await supabaseAdmin
     .from('organization_members')
     .select('org_id')
     .eq('user_id', req.user.id)
     .single()
 
-  if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
+  if (!caller?.org_id) return res.status(404).json({ error: 'Organisation not found' })
 
-  // Get all members of this org
+  // Fetch all org members
   const { data: members, error } = await supabaseAdmin
     .from('organization_members')
     .select('user_id, role, created_at')
-    .eq('org_id', member.org_id)
+    .eq('org_id', caller.org_id)
     .order('created_at', { ascending: true })
 
   if (error) throw error
+  if (!members || members.length === 0) return res.json({ members: [], org_id: caller.org_id })
 
-  // Enrich with profile and auth data
-  const enriched = await Promise.all((members || []).map(async m => {
-    let profile = null
-    let email = null
-    let verified_at = null
+  const userIds = members.map(m => m.user_id)
 
-    try {
-      const { data: p } = await supabaseAdmin
-        .from('profiles')
-        .select('full_name, verification_status, created_at')
-        .eq('auth_user_id', m.user_id)
-        .single()
-      profile = p
-    } catch(e) {}
+  // Batch fetch profiles (single query)
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('auth_user_id, full_name, verification_status, created_at')
+    .in('auth_user_id', userIds)
 
-    try {
-      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(m.user_id)
-      email = authUser?.user?.email || null
-    } catch(e) {}
+  const profileMap = {}
+  ;(profiles || []).forEach(p => { profileMap[p.auth_user_id] = p })
 
-    try {
-      const { data: verifiedLog } = await supabaseAdmin
-        .from('audit_log')
-        .select('created_at')
-        .eq('action', 'verification.approved')
-        .eq('org_id', member.org_id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-      verified_at = verifiedLog?.[0]?.created_at || null
-    } catch(e) {}
+  // Batch fetch emails via auth admin (single call, not N+1)
+  const emailMap = {}
+  try {
+    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
+    const orgUserSet = new Set(userIds)
+    ;(users || []).forEach(u => {
+      if (orgUserSet.has(u.id)) emailMap[u.id] = u.email || null
+    })
+  } catch(e) {
+    console.error('[MEMBERS] auth.admin.listUsers failed:', e.message)
+    // Continue without emails rather than failing the whole request
+  }
 
+  const enriched = members.map(m => {
+    const profile = profileMap[m.user_id] || {}
     return {
       user_id:             m.user_id,
-      full_name:           profile?.full_name || null,
-      email,
+      full_name:           profile.full_name || null,
+      email:               emailMap[m.user_id] || null,
       role:                m.role || 'sachverstaendige',
-      registered_at:       profile?.created_at || m.created_at,
-      verification_status: profile?.verification_status || 'unsubmitted',
-      verified_at,
+      registered_at:       profile.created_at || m.created_at,
+      verification_status: profile.verification_status || 'unsubmitted',
     }
-  }))
+  })
 
-  res.json({ members: enriched, org_id: member.org_id })
+  res.json({ members: enriched, org_id: caller.org_id })
 })
 
 export default router
