@@ -24,8 +24,7 @@ router.get('/', requireAuth, async (req, res) => {
     .select(`
       id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, betroffener_name, betroffener_dob, betroffener_adresse, created_at, updated_at,
       case_documents ( id, doc_type, status, ignored ),
-      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot ),
-      templates ( id, name )
+      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot )
     `)
     .eq('org_id', profile.org_id)
     .order('updated_at', { ascending: false })
@@ -50,7 +49,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
       gerichtsbeschluss_storage_path, statement_ids,
       generation_count, max_generations, created_at, updated_at,
-      case_documents ( id, file_name, doc_type, status, extracted_text, ignored, storage_path, created_at ),
+      case_documents ( id, file_name, doc_type, status, extracted_text, ignored, storage_path ),
       generated_outputs ( id, version, is_demo, output_status, created_at, prompt_snapshot )
     `)
     .eq('id', req.params.id)
