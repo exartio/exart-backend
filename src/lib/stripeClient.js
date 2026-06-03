@@ -37,7 +37,7 @@ export const PLANS = {
     interval: 'year',
     type: 'recurring',
   },
-  einzelgutachten: {
+  unit: {
     priceId: process.env.STRIPE_UNIT_PRICE_ID,
     verifiedSeatLimit: 1,
     label: 'Einzelgutachten',
@@ -45,7 +45,7 @@ export const PLANS = {
     interval: null,
     type: 'one_time',
   },
-  einzelgutachten_solo: {
+  unit_solo: {
     priceId: process.env.STRIPE_UNIT_SOLO_PRICE_ID,
     verifiedSeatLimit: 1,
     label: 'Einzelgutachten (Solo-Rabatt)',

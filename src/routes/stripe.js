@@ -8,7 +8,7 @@ const router = express.Router()
 
 // POST /api/stripe/checkout
 // Creates a Stripe Checkout session for the user's org
-// Body: { plan: 'solo' | 'expert' | 'einzelgutachten' }
+// Body: { plan: 'solo' | 'solo_yearly' | 'expert' | 'expert_yearly' | 'unit' }
 router.post('/checkout', requireAuth, async (req, res) => {
   const { plan } = req.body
 
@@ -50,7 +50,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
 
   // For unit purchases: check if org has active solo plan → apply discount
   let effectivePlan = plan
-  if (plan === 'einzelgutachten') {
+  if (plan === 'unit') {
     const { data: existingSub } = await supabaseAdmin
       .from('subscriptions')
       .select('plan, status')
@@ -61,7 +61,7 @@ router.post('/checkout', requireAuth, async (req, res) => {
       (existingSub.plan === 'solo' || existingSub.plan === 'solo_yearly')
 
     if (isSolo && process.env.STRIPE_UNIT_SOLO_PRICE_ID) {
-      effectivePlan = 'einzelgutachten_solo'
+      effectivePlan = 'unit_solo'
       console.log(`[STRIPE] Applying solo discount for unit purchase, org ${member.org_id}`)
     }
   }
@@ -96,36 +96,6 @@ router.post('/checkout', requireAuth, async (req, res) => {
   const session = await stripe.checkout.sessions.create(sessionParams)
 
   res.json({ url: session.url })
-})
-
-
-// POST /api/stripe/portal
-// Opens the Stripe customer portal for self-service billing
-router.post('/portal', requireAuth, async (req, res) => {
-  const { data: member } = await supabaseAdmin
-    .from('organization_members')
-    .select('org_id')
-    .eq('user_id', req.user.id)
-    .single()
-
-  if (!member) return res.status(400).json({ error: 'No organisation found' })
-
-  const { data: sub } = await supabaseAdmin
-    .from('subscriptions')
-    .select('stripe_customer_id')
-    .eq('org_id', member.org_id)
-    .single()
-
-  if (!sub?.stripe_customer_id) {
-    return res.status(400).json({ error: 'No Stripe customer found' })
-  }
-
-  const portalSession = await stripe.billingPortal.sessions.create({
-    customer: sub.stripe_customer_id,
-    return_url: `${process.env.FRONTEND_URL}/dashboard-settings`,
-  })
-
-  res.json({ url: portalSession.url })
 })
 
 
