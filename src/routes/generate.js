@@ -145,7 +145,9 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`)
     })
 
-    await stream.finalMessage()
+    const finalMsg = await stream.finalMessage()
+    const inputTokens  = finalMsg.usage?.input_tokens  || 0
+    const outputTokens = finalMsg.usage?.output_tokens || 0
 
     const { data: output, error: outputError } = await supabaseAdmin
       .from('generated_outputs')
@@ -158,6 +160,8 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
         version,
         is_demo: isDemo,
         output_status: 'draft',
+        input_tokens:  inputTokens,
+        output_tokens: outputTokens,
         prompt_snapshot: {
           system: systemPrompt,
           user: userPrompt,
@@ -188,7 +192,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     res.write(`data: ${JSON.stringify({ type: 'done', output })}\n\n`)
     res.end()
 
-    console.log(`[GEN] Completed generation for case ${case_id}, output ${output.id}`)
+    console.log(`[GEN] Completed case ${case_id}, output ${output.id} — ${inputTokens} in / ${outputTokens} out tokens`)
 
     // Increment per-case generation counter
     if (!isDemo) {

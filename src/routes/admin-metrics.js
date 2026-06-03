@@ -1,5 +1,6 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
+import { GENERATION_MODEL } from '../lib/anthropicClient.js'
 import Stripe from 'stripe'
 
 const router = express.Router()
@@ -53,7 +54,7 @@ router.get('/metrics', requireAdmin, async (req, res) => {
   const [backendPing, frontendPing, supabasePing] = await Promise.all([
     ping(`${process.env.RENDER_EXTERNAL_URL || 'https://exart-backend.onrender.com'}/health`, 'Backend (Render)'),
     ping('https://exart.io', 'Frontend (Webflow)'),
-    ping(`${process.env.SUPABASE_URL}/rest/v1/?apikey=${process.env.SUPABASE_ANON_KEY}`, 'Datenbank (Supabase)'),
+    ping(`${process.env.SUPABASE_URL}/rest/v1/?apikey=${process.env.SUPABASE_KEY}`, 'Datenbank (Supabase)'),
   ])
 
   // ── Users & verification ───────────────────────────────────────────────────
@@ -195,7 +196,40 @@ router.get('/metrics', requireAdmin, async (req, res) => {
     .eq('status', 'processing')
     .lt('created_at', tenMinAgo)
 
-  // ── Funnel / conversion ───────────────────────────────────────────────────
+  // ── Claude API cost ───────────────────────────────────────────────────────
+  const { data: tokenRows } = await supabaseAdmin
+    .from('generated_outputs')
+    .select('input_tokens, output_tokens, created_at')
+    .eq('is_demo', false)
+
+  let totalInputTokens  = 0
+  let totalOutputTokens = 0
+  let monthInputTokens  = 0
+  let monthOutputTokens = 0
+
+  ;(tokenRows || []).forEach(r => {
+    const inp = r.input_tokens  || 0
+    const out = r.output_tokens || 0
+    totalInputTokens  += inp
+    totalOutputTokens += out
+    if (r.created_at >= month) {
+      monthInputTokens  += inp
+      monthOutputTokens += out
+    }
+  })
+
+  // claude-sonnet-4: $3.00/MTok input, $15.00/MTok output (as of 2025)
+  const INPUT_COST_PER_MTOK  = 3.00
+  const OUTPUT_COST_PER_MTOK = 15.00
+  const totalCostUsd = (totalInputTokens  / 1_000_000 * INPUT_COST_PER_MTOK)
+                     + (totalOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTOK)
+  const monthCostUsd = (monthInputTokens  / 1_000_000 * INPUT_COST_PER_MTOK)
+                     + (monthOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTOK)
+
+  // Approximate EUR (no live FX — update rate as needed)
+  const USD_TO_EUR = 0.92
+  const totalCostEur = totalCostUsd * USD_TO_EUR
+  const monthCostEur = monthCostUsd * USD_TO_EUR
   // Verified but no active subscription (warm leads)
   const { data: verifiedProfiles } = await supabaseAdmin
     .from('profiles')
@@ -293,6 +327,18 @@ router.get('/metrics', requireAdmin, async (req, res) => {
       mrr_eur:       Math.round(mrr * 100) / 100,
       month_eur:     Math.round(revenueMonth * 100) / 100,
       stripe_error:  stripeError,
+    },
+    claude_cost: {
+      total_input_tokens:  totalInputTokens,
+      total_output_tokens: totalOutputTokens,
+      month_input_tokens:  monthInputTokens,
+      month_output_tokens: monthOutputTokens,
+      total_cost_usd: Math.round(totalCostUsd * 100) / 100,
+      month_cost_usd: Math.round(monthCostUsd * 100) / 100,
+      total_cost_eur: Math.round(totalCostEur * 100) / 100,
+      month_cost_eur: Math.round(monthCostEur * 100) / 100,
+      model: GENERATION_MODEL,
+      rates: { input_per_mtok: INPUT_COST_PER_MTOK, output_per_mtok: OUTPUT_COST_PER_MTOK },
     },
     usage: {
       cases:       { total: totalCases,       today: casesToday,       week: casesWeek },
