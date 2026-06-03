@@ -45,7 +45,7 @@ router.get('/me', requireAuth, async (req, res) => {
   if (hasActiveSub && hasPhysician) accessLevel = 'full'
   else if (hasActiveSub || hasPhysician) accessLevel = 'demo'
 
-  res.json({ org, accessLevel })
+  res.json({ org, accessLevel, role: member.role || 'sachverstaendige' })
 })
 
 // PATCH /api/orgs/me

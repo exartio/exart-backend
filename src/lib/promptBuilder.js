@@ -164,6 +164,7 @@ export function buildUserPrompt({
   beweisfragen,
   gutachtenType = 'betreuung',
   isDemo,
+  caseRow,
 }) {
   const sections = []
   const typeLabel = GUTACHTEN_TYPES[gutachtenType] || GUTACHTEN_TYPES.betreuung
@@ -176,9 +177,27 @@ Füge an mehreren Stellen deutlich sichtbare Hinweise ein wie "[DEMO - Kein echt
 Zeige die vollständige Struktur, aber fülle medizinische Details mit plausiblen aber fiktiven Beispieldaten.`
   }
 
+  // Build patient info block
+  const patientInfo = []
+  if (patientRef) patientInfo.push(`Name: **${patientRef}**`)
+  if (caseRow?.betroffener_dob) patientInfo.push(`Geburtsdatum: ${new Date(caseRow.betroffener_dob).toLocaleDateString('de-DE')}`)
+  if (caseRow?.betroffener_adresse) patientInfo.push(`Adresse: ${caseRow.betroffener_adresse}`)
+
+  const courtInfo = []
+  if (caseRow?.gericht) courtInfo.push(`Gericht: ${caseRow.gericht}`)
+  if (caseRow?.aktenzeichen) courtInfo.push(`Aktenzeichen: ${caseRow.aktenzeichen}`)
+  if (caseRow?.richter) courtInfo.push(`Richter/in: ${caseRow.richter}`)
+  if (caseRow?.beschlussdatum) courtInfo.push(`Beschlussdatum: ${new Date(caseRow.beschlussdatum).toLocaleDateString('de-DE')}`)
+  if (caseRow?.abgabefrist) courtInfo.push(`Abgabefrist: ${new Date(caseRow.abgabefrist).toLocaleDateString('de-DE')}`)
+
   sections.push(`# Auftrag
 
-Erstelle ein vollständiges **${typeLabel}** für den Patienten mit Referenzcode: **${patientRef}**`)
+Erstelle ein vollständiges **${typeLabel}**.
+
+## Begutachtete Person
+${patientInfo.join('  \n') || `Referenz: ${patientRef}`}
+
+${courtInfo.length > 0 ? `## Gerichtliche Beauftragung\n${courtInfo.join('  \n')}` : ''}`)
 
   // Template structure
   if (template?.content_json || template?.raw_text) {

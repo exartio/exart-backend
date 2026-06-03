@@ -22,7 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: cases, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, created_at, updated_at,
+      id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, betroffener_name, betroffener_dob, betroffener_adresse, created_at, updated_at,
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )

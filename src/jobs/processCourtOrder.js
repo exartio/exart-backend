@@ -1,12 +1,11 @@
 import { supabaseAdmin } from '../lib/supabase.js'
 import { anthropic, GENERATION_MODEL } from '../lib/anthropicClient.js'
-import pdf from 'pdf-parse'
 
 // Process a court order (Gerichtsbeschluss):
 // 1. Download from storage
 // 2. Send PDF directly to Claude as a document (native PDF support)
-// 3. Extract Beweisfragen
-// 4. Store questions back in cases table
+// 3. Extract Beweisfragen + case metadata (court, judge, date, Betroffener)
+// 4. Store everything back in cases table
 
 export async function processCourtOrder(caseId) {
   console.log(`[COURT] Starting extraction for case ${caseId}`)
@@ -40,10 +39,9 @@ export async function processCourtOrder(caseId) {
 
     console.log(`[COURT] Sending PDF to Claude (${buffer.length} bytes)`)
 
-    // Send PDF natively to Claude — works for both text and scanned PDFs
     const message = await anthropic.messages.create({
       model: GENERATION_MODEL,
-      max_tokens: 2000,
+      max_tokens: 3000,
       messages: [{
         role: 'user',
         content: [
@@ -57,40 +55,73 @@ export async function processCourtOrder(caseId) {
           },
           {
             type: 'text',
-            text: `Analysiere diesen deutschen Gerichtsbeschluss zur Einholung eines psychiatrischen Betreuungsgutachtens.
+            text: `Analysiere diesen deutschen Gerichtsbeschluss und extrahiere alle relevanten Informationen.
 
-Extrahiere alle Beweisfragen / Gutachterfragen, die das Gericht an den Sachverständigen stellt — üblicherweise als nummerierte oder alphabetisch geordnete Liste.
+Gib das Ergebnis als JSON-Objekt zurück mit folgender Struktur:
 
-Gib die Fragen als JSON-Array von Strings zurück. Jede Frage vollständig und wortgetreu aus dem Dokument übernommen.
-Antworte NUR mit dem JSON-Array, ohne Erklärungen, ohne Markdown-Backticks.
+{
+  "beweisfragen": ["Frage 1", "Frage 2"],
+  "gericht": "Name des Gerichts (z. B. Amtsgericht Musterstadt)",
+  "aktenzeichen": "Aktenzeichen (z. B. 17 XVII B 234/25)",
+  "richter": "Name des Richters / der Richterin (z. B. Dr. Müller)",
+  "beschlussdatum": "YYYY-MM-DD oder null",
+  "abgabefrist": "YYYY-MM-DD oder null",
+  "betroffener_name": "Vollständiger Name der betroffenen Person",
+  "betroffener_dob": "YYYY-MM-DD oder null",
+  "betroffener_adresse": "Vollständige Adresse der betroffenen Person oder null"
+}
 
-Beispiel: ["Liegt bei dem Betroffenen eine Krankheit vor?", "Welche Angelegenheiten kann der Betroffene nicht selbst besorgen?"]`
+Hinweise:
+- beweisfragen: alle Gutachterfragen / Beweisfragen wortgetreu aus dem Dokument, als Array
+- beschlussdatum: Datum des Beschlusses / der Verfügung
+- abgabefrist: Frist zur Erstattung des Gutachtens, falls angegeben
+- richter: nur der Name, ohne Titel falls nicht im Dokument, null wenn nicht erkennbar
+- Falls ein Wert nicht im Dokument enthalten ist, setze null
+- Antworte NUR mit dem JSON-Objekt, ohne Erklärungen, ohne Markdown-Backticks`
           }
         ]
       }]
     })
 
-    let beweisfragen = []
+    // Parse JSON response
+    let extracted = {}
     try {
-      const responseText = message.content[0]?.text?.trim() || '[]'
+      const responseText = message.content[0]?.text?.trim() || '{}'
       const clean = responseText.replace(/```json|```/g, '').trim()
-      beweisfragen = JSON.parse(clean)
-      if (!Array.isArray(beweisfragen)) beweisfragen = []
+      extracted = JSON.parse(clean)
     } catch {
-      console.warn('[COURT] Could not parse Beweisfragen JSON, storing empty array')
-      beweisfragen = []
+      console.warn('[COURT] Could not parse extraction JSON, using empty defaults')
+      extracted = {}
     }
 
+    const beweisfragen = Array.isArray(extracted.beweisfragen) ? extracted.beweisfragen : []
+
     console.log(`[COURT] Extracted ${beweisfragen.length} Beweisfragen`)
-    beweisfragen.forEach((f, i) => console.log(`[COURT] ${i+1}. ${f}`))
+    console.log(`[COURT] Gericht: ${extracted.gericht || '—'}`)
+    console.log(`[COURT] Richter: ${extracted.richter || '—'}`)
+    console.log(`[COURT] Beschlussdatum: ${extracted.beschlussdatum || '—'}`)
+    console.log(`[COURT] Abgabefrist: ${extracted.abgabefrist || '—'}`)
+    console.log(`[COURT] Betroffener: ${extracted.betroffener_name || '—'}`)
+
+    // Build update object — only set fields that were actually extracted
+    const updates = {
+      gerichtsbeschluss_status: 'ready',
+      beweisfragen,
+      beweisfragen_raw_text: '[extracted via Claude PDF vision]',
+    }
+
+    if (extracted.gericht)            updates.gericht            = extracted.gericht
+    if (extracted.aktenzeichen)       updates.aktenzeichen       = extracted.aktenzeichen
+    if (extracted.richter)            updates.richter             = extracted.richter
+    if (extracted.beschlussdatum)     updates.beschlussdatum      = extracted.beschlussdatum
+    if (extracted.abgabefrist)        updates.abgabefrist         = extracted.abgabefrist
+    if (extracted.betroffener_name)   updates.betroffener_name    = extracted.betroffener_name
+    if (extracted.betroffener_dob)    updates.betroffener_dob     = extracted.betroffener_dob
+    if (extracted.betroffener_adresse) updates.betroffener_adresse = extracted.betroffener_adresse
 
     await supabaseAdmin
       .from('cases')
-      .update({
-        gerichtsbeschluss_status: 'ready',
-        beweisfragen,
-        beweisfragen_raw_text: '[extracted via Claude PDF vision]',
-      })
+      .update(updates)
       .eq('id', caseId)
 
     console.log(`[COURT] Completed extraction for case ${caseId}`)
