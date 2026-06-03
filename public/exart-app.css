@@ -571,7 +571,7 @@ body.app-page { background: var(--cream); }
 
 /* ── Main content ── */
 .main-content { flex: 1; min-width: 0; overflow: auto; padding: 2rem; max-width: 1200px; }
-.main-content-wide { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
+.main-content-wide { flex: 1; min-width: 0; overflow: auto; padding: 2rem; max-width: 1200px; }
 
 /* ── Cap app shell at 1200px content width — merged into .page-shell above ── */
 
