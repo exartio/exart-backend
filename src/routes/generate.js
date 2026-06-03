@@ -265,4 +265,23 @@ router.get('/case/:caseId/outputs', requireAuth, async (req, res) => {
   res.json({ outputs })
 })
 
+// GET /api/generate/output/:id/charcount
+// Returns character count of the generated output text
+router.get('/output/:id/charcount', requireAuth, async (req, res) => {
+  const { data: output, error } = await supabaseAdmin
+    .from('generated_outputs')
+    .select('id, content_json, case_id')
+    .eq('id', req.params.id)
+    .single()
+
+  if (error || !output) return res.status(404).json({ error: 'Output not found' })
+
+  const text     = output.content_json?.text || ''
+  const charCount = text.replace(/\s/g, '').length  // characters without whitespace
+  const charCountWithSpaces = text.length             // characters with whitespace
+
+  res.json({ char_count: charCount, char_count_with_spaces: charCountWithSpaces })
+})
+
+
 export default router
