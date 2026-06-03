@@ -23,8 +23,8 @@ router.get('/', requireAuth, async (req, res) => {
     .from('cases')
     .select(`
       id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, betroffener_name, betroffener_dob, betroffener_adresse, created_at, updated_at,
-      created_by ( id, full_name ),
-      assigned_to ( id, full_name ),
+      case_documents ( id, doc_type, status, ignored ),
+      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot ),
       templates ( id, name )
     `)
     .eq('org_id', profile.org_id)
@@ -43,9 +43,14 @@ router.get('/:id', requireAuth, async (req, res) => {
   const { data: caseRow, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      *,
-      templates ( id, name, content_json ),
-      case_documents ( * ),
+      id, org_id, title, patient_ref, status, template_id,
+      aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum,
+      abgabefrist, honorar_erwartung, submitted_at,
+      betroffener_name, betroffener_dob, betroffener_adresse,
+      beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
+      gerichtsbeschluss_storage_path, statement_ids,
+      generation_count, max_generations, created_at, updated_at,
+      case_documents ( id, file_name, doc_type, status, extracted_text, ignored, storage_path, created_at ),
       generated_outputs ( id, version, is_demo, output_status, created_at, prompt_snapshot )
     `)
     .eq('id', req.params.id)
