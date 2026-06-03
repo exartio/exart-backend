@@ -2,7 +2,9 @@ import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import { Resend } from 'resend'
-import archiver from 'archiver'
+import { createRequire } from 'module'
+const require = createRequire(import.meta.url)
+const archiver = require('archiver')
 import { PassThrough } from 'stream'
 
 const router = express.Router()
