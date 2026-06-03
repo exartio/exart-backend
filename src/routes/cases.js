@@ -48,7 +48,7 @@ router.get('/:id', requireAuth, async (req, res) => {
       assigned_to ( id, full_name, title ),
       templates ( id, name, content_json ),
       case_documents ( * ),
-      generated_outputs ( id, version, is_demo, created_at, created_by ( full_name ) )
+      generated_outputs ( id, version, is_demo, output_status, created_at, prompt_snapshot )
     `)
     .eq('id', req.params.id)
     .eq('org_id', profile.org_id)
