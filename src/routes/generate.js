@@ -157,6 +157,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
         model_used: GENERATION_MODEL,
         version,
         is_demo: isDemo,
+        output_status: 'draft',
         prompt_snapshot: {
           system: systemPrompt,
           user: userPrompt,
@@ -230,18 +231,22 @@ router.get('/output/:id', requireAuth, async (req, res) => {
 
 // PATCH /api/generate/output/:id
 router.patch('/output/:id', requireAuth, async (req, res) => {
-  const { content_json } = req.body
+  const { content_json, output_status, completed_at } = req.body
   if (!content_json) return res.status(400).json({ error: 'content_json is required' })
 
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
 
+  const updates = { content_json }
+  if (output_status) updates.output_status = output_status
+  if (completed_at)  updates.completed_at  = completed_at
+
   const { data: output, error } = await supabaseAdmin
     .from('generated_outputs')
-    .update({ content_json })
+    .update(updates)
     .eq('id', req.params.id)
     .eq('org_id', profile.org_id)
-    .select('id, version, updated_at:created_at')
+    .select('id, version, output_status, completed_at, created_at')
     .single()
 
   if (error || !output) return res.status(404).json({ error: 'Output not found' })

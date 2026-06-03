@@ -502,3 +502,69 @@ export async function sendWelcomeEmail({ recipientName, recipientEmail }) {
 </html>`,
   })
 }
+
+// ── Einladungsmail ────────────────────────────────────────────────────────────
+export async function sendInvitationEmail({ recipientEmail, inviterName, orgName, role, acceptUrl }) {
+  const roleLabel = role === 'assistent' ? 'Assistent/in' : 'Sachverständige/r'
+
+  await resend.emails.send({
+    from: FROM,
+    to: recipientEmail,
+    subject: `Einladung zur Organisation ${orgName} — exart.io`,
+    html: `
+<!DOCTYPE html>
+<html lang="de">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
+        <tr><td style="background:#1a2640;padding:24px 32px;">
+          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;letter-spacing:-0.02em;">
+            exart<span style="color:#b89a5e;font-family:'DM Sans',Arial,sans-serif;font-size:11px;font-weight:500;letter-spacing:0.12em;vertical-align:super;">.io</span>
+          </p>
+        </td></tr>
+        <tr><td style="padding:32px;">
+          <p style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:0.14em;color:#b89a5e;font-weight:500;">Einladung</p>
+          <h1 style="margin:0 0 20px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;line-height:1.3;">
+            Sie wurden zur Organisation eingeladen
+          </h1>
+          <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;border-radius:5px;margin-bottom:24px;">
+            <tr><td style="padding:20px 24px;">
+              <p style="margin:0 0 8px;font-size:13px;color:#6b7a94;font-family:'DM Sans',Arial,sans-serif;">
+                <strong style="color:#1a2640;">${inviterName}</strong> hat Sie eingeladen, der Organisation
+                <strong style="color:#1a2640;">${orgName}</strong> auf exart.io beizutreten.
+              </p>
+              <p style="margin:0;font-size:13px;color:#4a5568;line-height:1.6;">
+                Ihre Rolle: <strong style="color:#1a2640;">${roleLabel}</strong>
+              </p>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 24px;font-size:14px;color:#4a5568;line-height:1.7;">
+            Klicken Sie auf den Button unten, um die Einladung anzunehmen. Der Link ist 7 Tage gültig.
+          </p>
+          <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
+            <tr><td style="background:#1a2640;border-radius:4px;">
+              <a href="${acceptUrl}"
+                 style="display:inline-block;padding:13px 28px;font-size:13px;font-weight:500;color:#ffffff;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
+                Einladung annehmen →
+              </a>
+            </td></tr>
+          </table>
+          <p style="margin:0 0 8px;font-size:12px;color:#6b7a94;line-height:1.6;">
+            Falls Sie diese Einladung nicht erwartet haben, können Sie diese E-Mail ignorieren.
+          </p>
+          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">
+            Der Link läuft am ${new Date(Date.now() + 7*24*60*60*1000).toLocaleDateString('de-DE')} ab.
+          </p>
+        </td></tr>
+        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.1);">
+          <p style="margin:0;font-size:11px;color:#6b7a94;text-align:center;">exart.io · <a href="https://exart.io" style="color:#1a2640;">exart.io</a></p>
+        </td></tr>
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`,
+  })
+}

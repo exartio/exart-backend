@@ -75,4 +75,61 @@ router.patch('/me', requireAuth, async (req, res) => {
   res.json({ org })
 })
 
+// GET /api/orgs/members
+// Returns all members of the user's organisation with profile and auth data
+router.get('/members', requireAuth, async (req, res) => {
+  const { data: member } = await supabaseAdmin
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', req.user.id)
+    .single()
+
+  if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
+
+  // Get all members of this org
+  const { data: members, error } = await supabaseAdmin
+    .from('organization_members')
+    .select('user_id, role, created_at')
+    .eq('org_id', member.org_id)
+    .order('created_at', { ascending: true })
+
+  if (error) throw error
+
+  // Enrich with profile and auth data
+  const enriched = await Promise.all((members || []).map(async m => {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('full_name, verification_status, created_at')
+      .eq('auth_user_id', m.user_id)
+      .single()
+
+    let email = null
+    try {
+      const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(m.user_id)
+      email = authUser?.user?.email || null
+    } catch(e) {}
+
+    // Determine verified_at from audit_log if available
+    const { data: verifiedLog } = await supabaseAdmin
+      .from('audit_log')
+      .select('created_at')
+      .eq('action', 'verification.approved')
+      .eq('org_id', member.org_id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    return {
+      user_id:              m.user_id,
+      full_name:            profile?.full_name || null,
+      email,
+      role:                 m.role || 'sachverstaendige',
+      registered_at:        profile?.created_at || m.created_at,
+      verification_status:  profile?.verification_status || 'pending',
+      verified_at:          verifiedLog?.[0]?.created_at || null,
+    }
+  }))
+
+  res.json({ members: enriched, org_id: member.org_id })
+})
+
 export default router

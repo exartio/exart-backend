@@ -22,7 +22,7 @@ router.get('/', requireAuth, async (req, res) => {
   const { data: cases, error } = await supabaseAdmin
     .from('cases')
     .select(`
-      id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, beauftragungsdatum, abgabefrist, honorar_erwartung, created_at, updated_at,
+      id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, created_at, updated_at,
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )
@@ -181,6 +181,47 @@ router.patch('/:id/statements', requireAuth, async (req, res) => {
   if (error) throw error
   res.json({ case: updated })
 })
+
+// POST /api/cases/:id/submit
+// Mark a case as submitted with timestamp
+router.post('/:id/submit', requireAuth, async (req, res) => {
+  const profile = await getUserContext(req.user.id)
+  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select('id, status')
+    .eq('id', req.params.id)
+    .eq('org_id', profile.org_id)
+    .single()
+
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+
+  const { data, error } = await supabaseAdmin
+    .from('cases')
+    .update({
+      status:       'submitted',
+      submitted_at: new Date().toISOString(),
+    })
+    .eq('id', req.params.id)
+    .select('id, status, submitted_at')
+    .single()
+
+  if (error) throw error
+
+  await supabaseAdmin.from('audit_log').insert({
+    org_id:      profile.org_id,
+    user_id:     req.user.id,
+    action:      'case.submitted',
+    entity_type: 'cases',
+    entity_id:   req.params.id,
+    metadata:    { submitted_at: data.submitted_at },
+  })
+
+  console.log(`[CASE] Submitted case ${req.params.id} at ${data.submitted_at}`)
+  res.json({ case: data })
+})
+
 
 // DELETE /api/cases/:id
 // Deletes a case and all associated documents, outputs and storage files
