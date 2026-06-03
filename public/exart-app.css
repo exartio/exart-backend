@@ -555,9 +555,15 @@ body.app-page { background: var(--cream); }
 .sidebar-spacer { flex: 1; }
 .sidebar-footer { padding: 1rem; border-top: 0.5px solid var(--border); }
 
+/* ── Override Webflow container width for app pages ── */
+.w-container { max-width: none; }
+.w-embed { max-width: none; width: 100%; }
+@media screen and (max-width: 991px) { .w-container { max-width: none; } }
+
 /* ── Main content ── */
 .main-content { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
 .main-content-wide { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
+
 
 
 /* ═══════════════════════════════════════════════════════════
