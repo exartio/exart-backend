@@ -561,7 +561,7 @@ body.app-page { background: var(--cream); }
 @media screen and (max-width: 991px) { .w-container { max-width: none; } }
 
 /* ── Main content ── */
-.main-content { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
+.main-content { flex: 1; min-width: 0; overflow: auto; padding: 2rem; max-width: 1200px; }
 .main-content-wide { flex: 1; min-width: 0; overflow: auto; padding: 2rem; }
 
 
