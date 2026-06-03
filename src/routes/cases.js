@@ -44,8 +44,6 @@ router.get('/:id', requireAuth, async (req, res) => {
     .from('cases')
     .select(`
       *,
-      created_by ( id, full_name, title ),
-      assigned_to ( id, full_name, title ),
       templates ( id, name, content_json ),
       case_documents ( * ),
       generated_outputs ( id, version, is_demo, output_status, created_at, prompt_snapshot )
