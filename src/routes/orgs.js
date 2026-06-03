@@ -97,35 +97,43 @@ router.get('/members', requireAuth, async (req, res) => {
 
   // Enrich with profile and auth data
   const enriched = await Promise.all((members || []).map(async m => {
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('full_name, verification_status, created_at')
-      .eq('auth_user_id', m.user_id)
-      .single()
-
+    let profile = null
     let email = null
+    let verified_at = null
+
+    try {
+      const { data: p } = await supabaseAdmin
+        .from('profiles')
+        .select('full_name, verification_status, created_at')
+        .eq('auth_user_id', m.user_id)
+        .single()
+      profile = p
+    } catch(e) {}
+
     try {
       const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(m.user_id)
       email = authUser?.user?.email || null
     } catch(e) {}
 
-    // Determine verified_at from audit_log if available
-    const { data: verifiedLog } = await supabaseAdmin
-      .from('audit_log')
-      .select('created_at')
-      .eq('action', 'verification.approved')
-      .eq('org_id', member.org_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
+    try {
+      const { data: verifiedLog } = await supabaseAdmin
+        .from('audit_log')
+        .select('created_at')
+        .eq('action', 'verification.approved')
+        .eq('org_id', member.org_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+      verified_at = verifiedLog?.[0]?.created_at || null
+    } catch(e) {}
 
     return {
-      user_id:              m.user_id,
-      full_name:            profile?.full_name || null,
+      user_id:             m.user_id,
+      full_name:           profile?.full_name || null,
       email,
-      role:                 m.role || 'sachverstaendige',
-      registered_at:        profile?.created_at || m.created_at,
-      verification_status:  profile?.verification_status || 'pending',
-      verified_at:          verifiedLog?.[0]?.created_at || null,
+      role:                m.role || 'sachverstaendige',
+      registered_at:       profile?.created_at || m.created_at,
+      verification_status: profile?.verification_status || 'unsubmitted',
+      verified_at,
     }
   }))
 
