@@ -1,6 +1,7 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
+import { checkCaseCreationQuota, incrementCaseCreationQuota } from '../lib/quotaService.js'
 
 const router = express.Router()
 
@@ -23,8 +24,6 @@ router.get('/', requireAuth, async (req, res) => {
     .from('cases')
     .select(`
       id, patient_ref, title, status, statement_ids, beweisfragen, generation_count, max_generations, aktenzeichen, gericht, richter, beschlussdatum, beauftragungsdatum, abgabefrist, honorar_erwartung, submitted_at, betroffener_name, betroffener_dob, betroffener_adresse, created_at, updated_at,
-      case_documents ( id, doc_type, status, ignored ),
-      generated_outputs ( id, version, is_demo, output_status, prompt_snapshot ),
       created_by ( id, full_name ),
       assigned_to ( id, full_name ),
       templates ( id, name )
@@ -75,6 +74,12 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     return res.status(400).json({ error: 'User has no organisation' })
   }
 
+  // Check quota before creating
+  const quota = await checkCaseCreationQuota(profile.org_id)
+  if (!quota.allowed) {
+    return res.status(403).json({ error: 'quota_exceeded', reason: quota.reason, used: quota.used, limit: quota.limit })
+  }
+
   const { data: caseRow, error } = await supabaseAdmin
     .from('cases')
     .insert({
@@ -89,6 +94,11 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     .single()
 
   if (error) throw error
+
+  // Increment counter after successful creation
+  incrementCaseCreationQuota(profile.org_id).catch(err =>
+    console.error('[QUOTA] Increment failed:', err.message)
+  )
 
   await supabaseAdmin.from('audit_log').insert({
     org_id: profile.org_id,
@@ -108,7 +118,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
   const profile = await getUserContext(req.user.id)
   if (!profile?.org_id) return res.status(404).json({ error: 'Case not found' })
 
-  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref', 'beweisfragen', 'aktenzeichen', 'gericht', 'richter', 'beschlussdatum', 'beauftragungsdatum', 'abgabefrist', 'honorar_erwartung', 'submitted_at', 'betroffener_name', 'betroffener_dob', 'betroffener_adresse']
+  const allowed = ['title', 'status', 'assigned_to', 'template_id', 'patient_ref', 'beweisfragen']
   const updates = Object.fromEntries(
     Object.entries(req.body).filter(([k]) => allowed.includes(k))
   )
@@ -125,8 +135,7 @@ router.patch('/:id', requireAuth, async (req, res) => {
     .select()
     .single()
 
-  if (error) { console.error('[PATCH] Supabase error:', error.message); return res.status(500).json({ error: error.message }) }
-  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
+  if (error || !caseRow) return res.status(404).json({ error: 'Case not found' })
   res.json({ case: caseRow })
 })
 
@@ -222,39 +231,6 @@ router.post('/:id/submit', requireAuth, async (req, res) => {
   })
 
   console.log(`[CASE] Submitted case ${req.params.id} at ${data.submitted_at}`)
-  res.json({ case: data })
-})
-
-
-// POST /api/cases/:id/submit
-router.post('/:id/submit', requireAuth, async (req, res) => {
-  const profile = await getUserContext(req.user.id)
-  if (!profile?.org_id) return res.status(404).json({ error: 'Not found' })
-
-  const { data: caseRow } = await supabaseAdmin
-    .from('cases')
-    .select('id, status')
-    .eq('id', req.params.id)
-    .eq('org_id', profile.org_id)
-    .single()
-
-  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
-
-  const { data, error } = await supabaseAdmin
-    .from('cases')
-    .update({ status: 'submitted', submitted_at: new Date().toISOString() })
-    .eq('id', req.params.id)
-    .select('id, status, submitted_at')
-    .single()
-
-  if (error) throw error
-
-  await supabaseAdmin.from('audit_log').insert({
-    org_id: profile.org_id, user_id: req.user.id,
-    action: 'case.submitted', entity_type: 'cases', entity_id: req.params.id,
-    metadata: { submitted_at: data.submitted_at },
-  })
-
   res.json({ case: data })
 })
 

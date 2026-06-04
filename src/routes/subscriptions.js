@@ -1,5 +1,5 @@
 import express from 'express'
-import { checkGenerationQuota, PLAN_LIMITS } from '../lib/quotaService.js'
+import { checkCaseCreationQuota, PLAN_LIMITS } from '../lib/quotaService.js'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
 import Stripe from 'stripe'
@@ -60,13 +60,18 @@ router.get('/me', requireAuth, async (req, res) => {
   })
 })
 
-// GET /api/subscriptions/quota?case_id=<uuid>
+// GET /api/subscriptions/quota
 // Quick quota check for frontend
 router.get('/quota', requireAuth, async (req, res) => {
-  const { case_id } = req.query
-  if (!case_id) return res.json({ allowed: true, reason: null, count: 0, max: 3 })
+  const { data: member } = await supabaseAdmin
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', req.user.id)
+    .single()
 
-  const quota = await checkGenerationQuota(case_id)
+  if (!member) return res.json({ allowed: false, reason: 'no_org', used: 0, limit: 0 })
+
+  const quota = await checkCaseCreationQuota(member.org_id)
   res.json(quota)
 })
 
