@@ -45,8 +45,43 @@ router.post('/webhook', async (req, res) => {
     console.log(`[VERIF] Sending approval email to ${email} (${fullName})`)
 
     await sendVerificationApproved({ fullName, email })
-
     console.log(`[VERIF] Approval email sent to ${email}`)
+
+    // Grant 1 free Gutachten on first verification if org has no active plan
+    try {
+      const { data: member } = await supabaseAdmin
+        .from('organization_members')
+        .select('org_id')
+        .eq('user_id', record.auth_user_id)
+        .single()
+
+      if (member?.org_id) {
+        const { data: sub } = await supabaseAdmin
+          .from('subscriptions')
+          .select('plan, status, addon_unit_count')
+          .eq('org_id', member.org_id)
+          .single()
+
+        const hasNoActivePlan = !sub || sub.status !== 'active' || sub.plan === 'none'
+        const notYetGranted   = !sub || (sub.addon_unit_count || 0) === 0
+
+        if (hasNoActivePlan && notYetGranted) {
+          await supabaseAdmin
+            .from('subscriptions')
+            .upsert({
+              org_id:           member.org_id,
+              plan:             'none',
+              status:           'none',
+              addon_unit_count: 1,
+            }, { onConflict: 'org_id' })
+          console.log(`[VERIF] Free Gutachten granted for org ${member.org_id}`)
+        }
+      }
+    } catch (grantErr) {
+      // Non-fatal — log but don't fail the webhook response
+      console.error('[VERIF] Failed to grant free Gutachten:', grantErr.message)
+    }
+
     res.json({ message: 'Approval email sent' })
 
   } catch (err) {

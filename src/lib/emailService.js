@@ -188,7 +188,8 @@ export async function sendVerificationApproved({ fullName, email }) {
           </h1>
           <p style="margin:0 0 24px;font-size:14px;color:#4a5568;line-height:1.7;">
             Sehr geehrte/r ${fullName},<br><br>
-            wir haben Ihren Approbationsnachweis geprüft und Ihr Konto freigeschaltet. Sie haben nun vollständigen Zugang zu allen Funktionen von exart.io.
+            wir haben Ihren Approbationsnachweis geprüft und Ihr Konto freigeschaltet. Sie haben nun vollständigen Zugang zu allen Funktionen von exart.io.<br><br>
+            Als Willkommensgeschenk haben wir Ihrem Konto ein <strong style="color:#1a2640;">kostenloses Einzelgutachten</strong> gutgeschrieben — Sie können sofort loslegen.
           </p>
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">

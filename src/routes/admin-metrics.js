@@ -1,6 +1,5 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
-import { GENERATION_MODEL } from '../lib/anthropicClient.js'
 import Stripe from 'stripe'
 
 const router = express.Router()
@@ -196,40 +195,7 @@ router.get('/metrics', requireAdmin, async (req, res) => {
     .eq('status', 'processing')
     .lt('created_at', tenMinAgo)
 
-  // ── Claude API cost ───────────────────────────────────────────────────────
-  const { data: tokenRows } = await supabaseAdmin
-    .from('generated_outputs')
-    .select('input_tokens, output_tokens, created_at')
-    .eq('is_demo', false)
-
-  let totalInputTokens  = 0
-  let totalOutputTokens = 0
-  let monthInputTokens  = 0
-  let monthOutputTokens = 0
-
-  ;(tokenRows || []).forEach(r => {
-    const inp = r.input_tokens  || 0
-    const out = r.output_tokens || 0
-    totalInputTokens  += inp
-    totalOutputTokens += out
-    if (r.created_at >= month) {
-      monthInputTokens  += inp
-      monthOutputTokens += out
-    }
-  })
-
-  // claude-sonnet-4: $3.00/MTok input, $15.00/MTok output (as of 2025)
-  const INPUT_COST_PER_MTOK  = 3.00
-  const OUTPUT_COST_PER_MTOK = 15.00
-  const totalCostUsd = (totalInputTokens  / 1_000_000 * INPUT_COST_PER_MTOK)
-                     + (totalOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTOK)
-  const monthCostUsd = (monthInputTokens  / 1_000_000 * INPUT_COST_PER_MTOK)
-                     + (monthOutputTokens / 1_000_000 * OUTPUT_COST_PER_MTOK)
-
-  // Approximate EUR (no live FX — update rate as needed)
-  const USD_TO_EUR = 0.92
-  const totalCostEur = totalCostUsd * USD_TO_EUR
-  const monthCostEur = monthCostUsd * USD_TO_EUR
+  // ── Funnel / conversion ───────────────────────────────────────────────────
   // Verified but no active subscription (warm leads)
   const { data: verifiedProfiles } = await supabaseAdmin
     .from('profiles')
@@ -328,18 +294,6 @@ router.get('/metrics', requireAdmin, async (req, res) => {
       month_eur:     Math.round(revenueMonth * 100) / 100,
       stripe_error:  stripeError,
     },
-    claude_cost: {
-      total_input_tokens:  totalInputTokens,
-      total_output_tokens: totalOutputTokens,
-      month_input_tokens:  monthInputTokens,
-      month_output_tokens: monthOutputTokens,
-      total_cost_usd: Math.round(totalCostUsd * 100) / 100,
-      month_cost_usd: Math.round(monthCostUsd * 100) / 100,
-      total_cost_eur: Math.round(totalCostEur * 100) / 100,
-      month_cost_eur: Math.round(monthCostEur * 100) / 100,
-      model: GENERATION_MODEL,
-      rates: { input_per_mtok: INPUT_COST_PER_MTOK, output_per_mtok: OUTPUT_COST_PER_MTOK },
-    },
     usage: {
       cases:       { total: totalCases,       today: casesToday,       week: casesWeek },
       generations: { total: totalGenerations, today: generationsToday, week: generationsWeek,
@@ -381,6 +335,44 @@ router.get('/metrics', requireAdmin, async (req, res) => {
       expert_count:     expertCount,
     },
   })
+})
+
+// ── GET /api/admin/pending-verifications ────────────────────────────────────
+router.get('/pending-verifications', requireAdmin, async (req, res) => {
+  const { data: docs, error } = await supabaseAdmin
+    .from('verification_documents')
+    .select(`
+      id, doc_type, storage_path, submitted_at,
+      profiles ( id, full_name, auth_user_id, verification_status,
+        organizations ( name )
+      )
+    `)
+    .eq('status', 'pending')
+    .order('submitted_at', { ascending: true })
+
+  if (error) return res.status(500).json({ error: error.message })
+
+  const docTypeLabels = {
+    approbation:     'Approbationsurkunde',
+    facharzturkunde: 'Facharztanerkennung',
+    berufsausweis:   'EU-Berufsausweis',
+    other:           'Sonstiger Nachweis',
+  }
+
+  const result = (docs || []).map(d => ({
+    id:           d.id,
+    doc_type:     docTypeLabels[d.doc_type] || d.doc_type,
+    submitted_at: d.submitted_at,
+    storage_path: d.storage_path,
+    storage_url:  `https://supabase.com/dashboard/project/bcxyychocefmurtblmwa/storage/buckets/verification-documents`,
+    full_name:    d.profiles?.full_name || '—',
+    auth_user_id: d.profiles?.auth_user_id,
+    org_name:     d.profiles?.organizations?.name || '—',
+    verif_status: d.profiles?.verification_status,
+    profile_id:   d.profiles?.id,
+  }))
+
+  res.json({ pending: result, count: result.length })
 })
 
 export default router

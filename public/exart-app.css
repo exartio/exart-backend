@@ -318,7 +318,16 @@ input[type="file"] { display: none; }
 .nav-cta:hover { background: var(--navy-light); }
 
 /* ── Hero ── */
-.hero { background: var(--navy); color: #fff; padding: 5rem 2rem 4rem; }
+.hero {
+  color: #fff;
+  padding: 5rem 2rem 4rem;
+  position: relative;
+  background:
+    linear-gradient(rgba(10,18,32,0.62), rgba(10,18,32,0.62)),
+    url('https://cdn.prod.website-files.com/6a1b910f52ba19ba375f4907/6a2186a4ed26ae5bf817516f_hero.jpeg')
+    center center / cover no-repeat;
+}
+ 
 .hero-grid {
   display: grid; grid-template-columns: 1fr 1fr; gap: 4rem;
   max-width: 960px; margin: 0 auto; align-items: center;
