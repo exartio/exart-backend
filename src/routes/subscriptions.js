@@ -60,18 +60,13 @@ router.get('/me', requireAuth, async (req, res) => {
   })
 })
 
-// GET /api/subscriptions/quota
+// GET /api/subscriptions/quota?case_id=<uuid>
 // Quick quota check for frontend
 router.get('/quota', requireAuth, async (req, res) => {
-  const { data: member } = await supabaseAdmin
-    .from('organization_members')
-    .select('org_id')
-    .eq('user_id', req.user.id)
-    .single()
+  const { case_id } = req.query
+  if (!case_id) return res.json({ allowed: true, reason: null, count: 0, max: 3 })
 
-  if (!member) return res.json({ allowed: false, reason: 'no_org', used: 0, limit: 0 })
-
-  const quota = await checkGenerationQuota(member.org_id)
+  const quota = await checkGenerationQuota(case_id)
   res.json(quota)
 })
 
