@@ -152,3 +152,65 @@ export async function incrementGenerationQuota(caseId) {
 
   console.log(`[QUOTA] Generation ${newCount} for case ${caseId}`)
 }
+
+// ── OCR document limits per case ─────────────────────────────────────────────
+
+export const OCR_LIMITS = {
+  solo:          { case_document: 20, expert_finding: 20 },
+  solo_yearly:   { case_document: 20, expert_finding: 20 },
+  expert:        { case_document: 50, expert_finding: 50 },
+  expert_yearly: { case_document: 50, expert_finding: 50 },
+  unit:          { case_document: 20, expert_finding: 20 },
+  none:          { case_document: 0,  expert_finding: 0  },
+}
+
+// Check if an org can OCR-process another document for a given case
+// type: 'case_document' | 'expert_finding'
+// Returns { allowed, used, limit }
+export async function checkOcrQuota(orgId, caseId, type) {
+  const { data: sub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('plan')
+    .eq('org_id', orgId)
+    .single()
+
+  const plan   = sub?.plan || 'none'
+  const limits = OCR_LIMITS[plan] || OCR_LIMITS.none
+  const limit  = limits[type] ?? 0
+
+  const col = type === 'case_document' ? 'ocr_case_doc_count' : 'ocr_expert_finding_count'
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select(col)
+    .eq('id', caseId)
+    .single()
+
+  const used = caseRow?.[col] || 0
+
+  if (used >= limit) {
+    return { allowed: false, used, limit }
+  }
+  return { allowed: true, used, limit }
+}
+
+// Increment the OCR counter on the case after a document is queued for processing
+// type: 'case_document' | 'expert_finding'
+export async function incrementOcrCount(caseId, type) {
+  const col = type === 'case_document' ? 'ocr_case_doc_count' : 'ocr_expert_finding_count'
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select(col)
+    .eq('id', caseId)
+    .single()
+
+  if (!caseRow) return
+
+  await supabaseAdmin
+    .from('cases')
+    .update({ [col]: (caseRow[col] || 0) + 1 })
+    .eq('id', caseId)
+
+  console.log(`[OCR] ${type} count incremented for case ${caseId}: ${(caseRow[col] || 0) + 1}/${OCR_LIMITS}`)
+}

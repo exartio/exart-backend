@@ -5,6 +5,7 @@ import { requireAuth, checkAccess } from '../middleware/auth.js'
 import { processStatement } from '../jobs/processStatement.js'
 import { processCaseDocument } from '../jobs/processCaseDocument.js'
 import { processExpertFinding } from '../jobs/processExpertFinding.js'
+import { checkOcrQuota, incrementOcrCount } from '../lib/quotaService.js'
 import { sendVerificationNotification } from '../lib/emailService.js'
 import { randomUUID } from 'crypto'
 
@@ -235,6 +236,19 @@ router.post('/case-document', requireAuth, checkAccess, upload.single('file'), a
 
   if (dbError) throw dbError
 
+  // Check OCR quota before processing
+  const ocrQuota = await checkOcrQuota(profile.org_id, case_id, 'case_document')
+  if (!ocrQuota.allowed) {
+    // File is stored but will not be OCR-processed — mark as quota_exceeded
+    await supabaseAdmin
+      .from('case_documents')
+      .update({ status: 'error', error_message: `OCR-Limit erreicht (${ocrQuota.used}/${ocrQuota.limit} für diesen Fall)` })
+      .eq('id', doc.id)
+    return res.status(201).json({ document: { ...doc, status: 'error', error_message: `OCR-Limit erreicht (${ocrQuota.used}/${ocrQuota.limit} für diesen Fall)` }, ocr_quota_exceeded: true })
+  }
+
+  await incrementOcrCount(case_id, 'case_document')
+
   res.status(201).json({ document: doc })
 
   processCaseDocument(doc.id).catch(err =>
@@ -390,6 +404,19 @@ router.post('/own-finding', requireAuth, upload.single('file'), async (req, res)
       .single()
 
     if (dbError) throw dbError
+
+    // Check OCR quota before processing
+    const ocrQuota = await checkOcrQuota(profile.org_id, case_id, 'expert_finding')
+    if (!ocrQuota.allowed) {
+      await supabaseAdmin
+        .from('expert_findings')
+        .update({ status: 'error', error_message: `OCR-Limit erreicht (${ocrQuota.used}/${ocrQuota.limit} für diesen Fall)` })
+        .eq('id', finding.id)
+      return res.status(201).json({ finding: { ...finding, status: 'error', error_message: `OCR-Limit erreicht (${ocrQuota.used}/${ocrQuota.limit} für diesen Fall)` }, ocr_quota_exceeded: true })
+    }
+
+    await incrementOcrCount(case_id, 'expert_finding')
+
     res.status(201).json({ finding })
 
     // Process with dedicated expert finding processor
