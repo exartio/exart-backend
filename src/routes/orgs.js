@@ -31,6 +31,7 @@ router.get('/me', requireAuth, async (req, res) => {
 
   if (error) throw error
 
+  // Check subscription status for accessLevel
   const { data: sub } = await supabaseAdmin
     .from('subscriptions')
     .select('status, plan')
@@ -48,6 +49,7 @@ router.get('/me', requireAuth, async (req, res) => {
 })
 
 // PATCH /api/orgs/me
+// Update org name, address, footer_settings
 router.patch('/me', requireAuth, async (req, res) => {
   const { data: member } = await supabaseAdmin
     .from('organization_members')
@@ -74,63 +76,45 @@ router.patch('/me', requireAuth, async (req, res) => {
 })
 
 // GET /api/orgs/members
+// Returns all members of the user's organisation with profile and auth data
 router.get('/members', requireAuth, async (req, res) => {
-  // Find the caller's org
-  const { data: caller } = await supabaseAdmin
+  console.log('[MEMBERS] Fetching /api/orgs/members...')
+
+  const { data: member } = await supabaseAdmin
     .from('organization_members')
     .select('org_id')
     .eq('user_id', req.user.id)
     .single()
 
-  if (!caller?.org_id) return res.status(404).json({ error: 'Organisation not found' })
+  if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
 
-  // Fetch all org members
+  // Get all members with their profiles in one query
   const { data: members, error } = await supabaseAdmin
     .from('organization_members')
-    .select('user_id, role, created_at')
-    .eq('org_id', caller.org_id)
-    .order('created_at', { ascending: true })
+    .select(`
+      user_id, role,
+      profiles ( full_name, verification_status, created_at, email )
+    `)
+    .eq('org_id', member.org_id)
+    .order('user_id', { ascending: true })
 
-  if (error) throw error
-  if (!members || members.length === 0) return res.json({ members: [], org_id: caller.org_id })
-
-  const userIds = members.map(m => m.user_id)
-
-  // Batch fetch profiles (single query)
-  const { data: profiles } = await supabaseAdmin
-    .from('profiles')
-    .select('auth_user_id, full_name, verification_status, created_at')
-    .in('auth_user_id', userIds)
-
-  const profileMap = {}
-  ;(profiles || []).forEach(p => { profileMap[p.auth_user_id] = p })
-
-  // Batch fetch emails via auth admin (single call, not N+1)
-  const emailMap = {}
-  try {
-    const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
-    const orgUserSet = new Set(userIds)
-    ;(users || []).forEach(u => {
-      if (orgUserSet.has(u.id)) emailMap[u.id] = u.email || null
-    })
-  } catch(e) {
-    console.error('[MEMBERS] auth.admin.listUsers failed:', e.message)
-    // Continue without emails rather than failing the whole request
+  if (error) {
+    console.error('[MEMBERS] Query error:', error.message)
+    throw error
   }
 
-  const enriched = members.map(m => {
-    const profile = profileMap[m.user_id] || {}
-    return {
-      user_id:             m.user_id,
-      full_name:           profile.full_name || null,
-      email:               emailMap[m.user_id] || null,
-      role:                m.role || 'sachverstaendige',
-      registered_at:       profile.created_at || m.created_at,
-      verification_status: profile.verification_status || 'unsubmitted',
-    }
-  })
+  const enriched = (members || []).map(m => ({
+    user_id:             m.user_id,
+    full_name:           m.profiles?.full_name || null,
+    email:               m.profiles?.email || null,
+    role:                m.role || 'sachverstaendige',
+    registered_at:       m.profiles?.created_at || null,
+    verification_status: m.profiles?.verification_status || 'pending',
+    verified_at:         null,
+  }))
 
-  res.json({ members: enriched, org_id: caller.org_id })
+  console.log(`[MEMBERS] Returning ${enriched.length} members`)
+  res.json({ members: enriched, org_id: member.org_id })
 })
 
 export default router
