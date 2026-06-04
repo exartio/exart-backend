@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth, checkAccess } from '../middleware/auth.js'
 import { processStatement } from '../jobs/processStatement.js'
 import { processCaseDocument } from '../jobs/processCaseDocument.js'
+import { processExpertFinding } from '../jobs/processExpertFinding.js'
 import { sendVerificationNotification } from '../lib/emailService.js'
 import { randomUUID } from 'crypto'
 
@@ -330,7 +331,7 @@ router.delete('/case-document/:id', requireAuth, async (req, res) => {
 
 
 // POST /api/uploads/own-finding
-// Upload or save a text-based own finding as a case_document
+// Upload or save an expert finding into the expert_findings table
 // Body (multipart or JSON): case_id, doc_type, text? (for text input), file? (for upload)
 router.post('/own-finding', requireAuth, upload.single('file'), async (req, res) => {
   const { case_id, doc_type, text } = req.body
@@ -364,21 +365,22 @@ router.post('/own-finding', requireAuth, upload.single('file'), async (req, res)
   }
 
   if (req.file) {
-    // File upload path — same as case document
+    // File upload path — store in expert-findings bucket
     const ext         = req.file.originalname.split('.').pop()
     const storagePath = `${profile.org_id}/${case_id}/${randomUUID()}.${ext}`
 
     const { error: storageError } = await supabaseAdmin.storage
-      .from('case-documents')
+      .from('expert-findings')
       .upload(storagePath, req.file.buffer, { contentType: req.file.mimetype })
 
     if (storageError) throw storageError
 
-    const { data: doc, error: dbError } = await supabaseAdmin
-      .from('case_documents')
+    const { data: finding, error: dbError } = await supabaseAdmin
+      .from('expert_findings')
       .insert({
         case_id,
         org_id:       profile.org_id,
+        uploaded_by:  profile.id,
         file_name:    `${typeLabels[doc_type]}: ${req.file.originalname}`,
         storage_path: storagePath,
         doc_type,
@@ -388,20 +390,21 @@ router.post('/own-finding', requireAuth, upload.single('file'), async (req, res)
       .single()
 
     if (dbError) throw dbError
-    res.status(201).json({ document: doc })
+    res.status(201).json({ finding })
 
-    // Process with Claude OCR
-    processCaseDocument(doc.id).catch(err =>
-      console.error('[OCR] Unhandled error:', err)
+    // Process with dedicated expert finding processor
+    processExpertFinding(finding.id).catch(err =>
+      console.error('[OCR] Unhandled error in processExpertFinding:', err)
     )
 
   } else if (text?.trim()) {
-    // Text input path — store directly as extracted_text, no file needed
-    const { data: doc, error: dbError } = await supabaseAdmin
-      .from('case_documents')
+    // Text input path — store directly as extracted_text, no OCR needed
+    const { data: finding, error: dbError } = await supabaseAdmin
+      .from('expert_findings')
       .insert({
         case_id,
         org_id:         profile.org_id,
+        uploaded_by:    profile.id,
         file_name:      `${typeLabels[doc_type]} (Texteingabe)`,
         storage_path:   null,
         doc_type,
@@ -412,7 +415,7 @@ router.post('/own-finding', requireAuth, upload.single('file'), async (req, res)
       .single()
 
     if (dbError) throw dbError
-    res.status(201).json({ document: doc })
+    res.status(201).json({ finding })
 
   } else {
     res.status(400).json({ error: 'Either file or text is required' })

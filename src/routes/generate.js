@@ -50,6 +50,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       id, patient_ref, title, template_id,
       beweisfragen, beweisfragen_raw_text, gerichtsbeschluss_status,
       case_documents ( id, file_name, doc_type, status, extracted_text, ignored ),
+      expert_findings ( id, file_name, doc_type, status, extracted_text, ignored ),
       templates ( id, name, content_json )
     `)
     .eq('id', case_id)
@@ -72,9 +73,10 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   }
 
   // ── 3. Check all documents are processed ─────────────────
-  const pendingDocs = caseRow.case_documents.filter(
-    d => d.status === 'pending' || d.status === 'processing'
-  )
+  const pendingDocs = [
+    ...caseRow.case_documents,
+    ...(caseRow.expert_findings || []),
+  ].filter(d => d.status === 'pending' || d.status === 'processing')
   if (pendingDocs.length > 0 && !isDemo) {
     return res.status(409).json({
       error: 'Some documents are still being processed',
@@ -105,13 +107,16 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
   // ── 5. Build prompt — now with beweisfragen ───────────────
   const systemPrompt = buildSystemPrompt(gutachten_type)
   const userPrompt = buildUserPrompt({
-    caseDocuments: caseRow.case_documents,
-    ownFindings: own_findings,
+    caseDocuments:  caseRow.case_documents,
+    expertFindings: caseRow.expert_findings || [],
+    ownFindings:    own_findings,
     retrievedChunks,
     template,
-    patientRef: caseRow.patient_ref,
+    patientRef:   caseRow.patient_ref,
     beweisfragen: caseRow.beweisfragen || [],
+    gutachtenType: gutachten_type,
     isDemo,
+    caseRow,
   })
 
   // ── 6. Get next version number ────────────────────────────
@@ -145,9 +150,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
       res.write(`data: ${JSON.stringify({ type: 'text', text })}\n\n`)
     })
 
-    const finalMsg = await stream.finalMessage()
-    const inputTokens  = finalMsg.usage?.input_tokens  || 0
-    const outputTokens = finalMsg.usage?.output_tokens || 0
+    await stream.finalMessage()
 
     const { data: output, error: outputError } = await supabaseAdmin
       .from('generated_outputs')
@@ -160,8 +163,6 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
         version,
         is_demo: isDemo,
         output_status: 'draft',
-        input_tokens:  inputTokens,
-        output_tokens: outputTokens,
         prompt_snapshot: {
           system: systemPrompt,
           user: userPrompt,
@@ -192,7 +193,7 @@ router.post('/', requireAuth, checkAccess, async (req, res) => {
     res.write(`data: ${JSON.stringify({ type: 'done', output })}\n\n`)
     res.end()
 
-    console.log(`[GEN] Completed case ${case_id}, output ${output.id} — ${inputTokens} in / ${outputTokens} out tokens`)
+    console.log(`[GEN] Completed generation for case ${case_id}, output ${output.id}`)
 
     // Increment per-case generation counter
     if (!isDemo) {

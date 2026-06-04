@@ -157,6 +157,7 @@ export function buildSystemPrompt(gutachtenType = 'betreuung') {
 
 export function buildUserPrompt({
   caseDocuments,
+  expertFindings = [],
   ownFindings,
   retrievedChunks,
   template,
@@ -242,38 +243,41 @@ Die folgenden Textausschnitte stammen aus früheren Gutachten dieses Gutachters.
 ${chunksText}`)
   }
 
-  // Case documents — split into own findings (priority) and external sources
-  if (caseDocuments?.length > 0) {
-    const ownTypes = ['exploration', 'untersuchung', 'amdp', 'anamnese', 'sonstig', 'own_findings']
-    const ready    = caseDocuments.filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
+  // Expert findings — from expert_findings table (uploaded via own-finding route)
+  // These are the physician's own examination results and have highest priority
+  if (expertFindings?.length > 0) {
+    const ready = expertFindings.filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
 
-    const ownDocs = ready.filter(d => ownTypes.includes(d.doc_type))
-    const extDocs = ready.filter(d => !ownTypes.includes(d.doc_type))
+    if (ready.length > 0) {
+      const findingTypeLabels = {
+        exploration:  'Exploration',
+        untersuchung: 'Untersuchungsbefund',
+        amdp:         'AMDP-Befund',
+        anamnese:     'Fremd-/Anamnese',
+        sonstig:      'Sonstiger Befund',
+      }
 
-    const typeLabels = {
-      exploration:  'Exploration',
-      untersuchung: 'Untersuchung',
-      amdp:         'AMDP-Befund',
-      anamnese:     'Fremd-/Anamnese',
-      sonstig:      'Sonstiger Befund',
-      own_findings: 'Eigene Befunde',
-    }
-
-    if (ownDocs.length > 0) {
-      const ownText = ownDocs
-        .map((d, i) => `### B${i + 1} — ${typeLabels[d.doc_type] || d.doc_type}: ${d.file_name}\n\n${d.extracted_text}`)
+      const findingsText = ready
+        .map((d, i) => `### B${i + 1} — ${findingTypeLabels[d.doc_type] || d.doc_type}: ${d.file_name}\n\n${d.extracted_text}`)
         .join('\n\n---\n\n')
+
       sections.push(`# Eigene Untersuchungsbefunde des Gutachters (PRIORITÄT)
 
 WICHTIG: Die folgenden Befunde wurden vom Sachverständigen persönlich erhoben. Sie sind verbindlich und müssen wortgetreu und vollständig in das Gutachten übernommen werden. Sie haben höchste Priorität gegenüber allen anderen Unterlagen.
 
-${ownText}`)
+${findingsText}`)
     }
+  }
 
-    if (extDocs.length > 0) {
-      const extText = extDocs
+  // Case documents — all treated as external source documents
+  if (caseDocuments?.length > 0) {
+    const ready = caseDocuments.filter(d => d.status === 'ready' && d.extracted_text && !d.ignored)
+
+    if (ready.length > 0) {
+      const extText = ready
         .map((d, i) => `### Q${i + 1} — ${docTypeLabel(d.doc_type)}: ${d.file_name}\n\n${d.extracted_text}`)
         .join('\n\n---\n\n')
+
       sections.push(`# Vorliegende Fremdunterlagen und Akten
 
 Die folgenden Unterlagen stammen aus externen Quellen und dienen als Referenz. Sie sind nach fachlichem Ermessen zu würdigen.
