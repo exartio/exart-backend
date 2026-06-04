@@ -101,21 +101,15 @@ export async function incrementCaseCreationQuota(orgId) {
       .eq('org_id', orgId)
     console.log(`[QUOTA] Case created, unit count: ${(sub.gutachten_count || 0) + 1}/${planConfig.limit}`)
   } else if (planConfig.type === 'monthly') {
-    const newCount   = (sub.monthly_count || 0) + 1
-    const addonUnits = sub.addon_unit_count || 0
-    const baseLimit  = planConfig.limit
-    const updates    = { monthly_count: newCount }
-
-    if (newCount > baseLimit && addonUnits > 0) {
-      updates.addon_unit_count = addonUnits - 1
-      console.log(`[QUOTA] Addon unit consumed, ${addonUnits - 1} remaining`)
-    }
-
+    // Always increment monthly_count only.
+    // addon_unit_count is set at purchase time by the Stripe webhook and
+    // must NOT be decremented here — it resets with the subscription cycle.
+    const newCount = (sub.monthly_count || 0) + 1
     await supabaseAdmin
       .from('subscriptions')
-      .update(updates)
+      .update({ monthly_count: newCount })
       .eq('org_id', orgId)
-    console.log(`[QUOTA] Case created, monthly count: ${newCount}/${baseLimit + addonUnits}`)
+    console.log(`[QUOTA] Case created, monthly count: ${newCount}`)
   }
 }
 
