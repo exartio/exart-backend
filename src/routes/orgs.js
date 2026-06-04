@@ -76,10 +76,8 @@ router.patch('/me', requireAuth, async (req, res) => {
 })
 
 // GET /api/orgs/members
-// Returns all members of the user's organisation with profile and auth data
+// Returns all members of the user's organisation with profile data
 router.get('/members', requireAuth, async (req, res) => {
-  console.log('[MEMBERS] Fetching /api/orgs/members...')
-
   const { data: member } = await supabaseAdmin
     .from('organization_members')
     .select('org_id')
@@ -88,32 +86,38 @@ router.get('/members', requireAuth, async (req, res) => {
 
   if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
 
-  // Get all members with their profiles in one query
+  // Get all member user_ids for this org
   const { data: members, error } = await supabaseAdmin
     .from('organization_members')
-    .select(`
-      user_id, role,
-      profiles ( full_name, verification_status, created_at, email )
-    `)
+    .select('user_id, role')
     .eq('org_id', member.org_id)
-    .order('user_id', { ascending: true })
 
-  if (error) {
-    console.error('[MEMBERS] Query error:', error.message)
-    throw error
-  }
+  if (error) throw error
 
-  const enriched = (members || []).map(m => ({
-    user_id:             m.user_id,
-    full_name:           m.profiles?.full_name || null,
-    email:               m.profiles?.email || null,
-    role:                m.role || 'sachverstaendige',
-    registered_at:       m.profiles?.created_at || null,
-    verification_status: m.profiles?.verification_status || 'pending',
-    verified_at:         null,
-  }))
+  const userIds = (members || []).map(m => m.user_id)
 
-  console.log(`[MEMBERS] Returning ${enriched.length} members`)
+  // Fetch all profiles in one query
+  const { data: profiles } = await supabaseAdmin
+    .from('profiles')
+    .select('auth_user_id, full_name, email, verification_status, created_at')
+    .in('auth_user_id', userIds)
+
+  const profileMap = {}
+  ;(profiles || []).forEach(p => { profileMap[p.auth_user_id] = p })
+
+  const enriched = (members || []).map(m => {
+    const p = profileMap[m.user_id] || {}
+    return {
+      user_id:             m.user_id,
+      full_name:           p.full_name || null,
+      email:               p.email || null,
+      role:                m.role || 'sachverstaendige',
+      registered_at:       p.created_at || null,
+      verification_status: p.verification_status || 'pending',
+      verified_at:         null,
+    }
+  })
+
   res.json({ members: enriched, org_id: member.org_id })
 })
 
