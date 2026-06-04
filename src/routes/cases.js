@@ -125,7 +125,8 @@ router.patch('/:id', requireAuth, async (req, res) => {
     .select()
     .single()
 
-  if (error || !caseRow) return res.status(404).json({ error: 'Case not found' })
+  if (error) { console.error('[PATCH] Supabase error:', error.message); return res.status(500).json({ error: error.message }) }
+  if (!caseRow) return res.status(404).json({ error: 'Case not found' })
   res.json({ case: caseRow })
 })
 
