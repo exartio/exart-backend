@@ -1,6 +1,7 @@
 import express from 'express'
 import { supabaseAdmin } from '../lib/supabase.js'
 import { requireAuth } from '../middleware/auth.js'
+import { sendAdminAccountDeleted } from '../lib/emailService.js'
 
 const router = express.Router()
 
@@ -50,6 +51,16 @@ router.patch('/', requireAuth, async (req, res) => {
 router.delete('/account', requireAuth, async (req, res) => {
   const userId = req.user.id
 
+  // Fetch name + email before deleting for admin notification
+  const { data: profile } = await supabaseAdmin
+    .from('profiles')
+    .select('full_name')
+    .eq('auth_user_id', userId)
+    .single()
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(userId)
+  const email    = authUser?.user?.email || '—'
+  const fullName = profile?.full_name || '—'
+
   // Delete profile (cascades to cases, documents via FK)
   await supabaseAdmin
     .from('profiles')
@@ -61,6 +72,11 @@ router.delete('/account', requireAuth, async (req, res) => {
   if (error) {
     return res.status(500).json({ error: error.message })
   }
+
+  // Notify admin
+  sendAdminAccountDeleted({ fullName, email }).catch(err =>
+    console.error('[EMAIL] Admin account-deleted notification failed:', err.message)
+  )
 
   res.json({ message: 'Account deleted' })
 })

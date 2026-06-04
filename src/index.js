@@ -8,7 +8,8 @@ import casesRouter from './routes/cases.js'
 import verificationRouter from './routes/verification.js'
 import referralRouter from './routes/referral.js'
 import abrechnungRouter from './routes/abrechnung.js'
-import adminRouter from './routes/admin-metrics.js'
+import adminRouter  from './routes/admin-metrics.js'
+import authWebhook  from './routes/auth-webhook.js'
 import invitationsRouter from './routes/invitations.js'
 import exportArchiveRouter from './routes/exportArchive.js'
 import { runDeadlineReminders } from './jobs/deadlineReminder.js'
@@ -62,6 +63,7 @@ app.use('/api/verification',   verificationRouter)
 app.use('/api/referral',        referralRouter)
 app.use('/api/abrechnung',      abrechnungRouter)
 app.use('/api/admin',           adminRouter)
+app.use('/api/webhooks/auth',    authWebhook)
 app.use('/api/invitations',     invitationsRouter)
 app.use('/api/export-archive',  exportArchiveRouter)
 app.use('/api/generate',       generateRouter)
