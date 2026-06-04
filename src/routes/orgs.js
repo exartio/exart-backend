@@ -62,7 +62,7 @@ router.patch('/me', requireAuth, async (req, res) => {
   const allowed = ['name', 'address', 'footer_settings']
   const updates = {}
   allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k] })
-  updates.updated_at = new Date().toISOString()
+  // updated_at not present on organizations table
 
   const { data: org, error } = await supabaseAdmin
     .from('organizations')
