@@ -149,13 +149,15 @@ async function generateDocx(output, caseRow, profile, org) {
     }))
   })
 
-  // Page number on last footer line
+  // Page number on last footer line — using docx field syntax
   footerParas.push(new Paragraph({
     children: [
-      new TextRun({ text: '', font: FONT, size: pt(8) }),
       new TextRun({ text: '\t', font: FONT, size: pt(8) }),
       new TextRun({ text: 'Seite ', font: FONT, size: pt(8), color: COLOR_LIGHT }),
-      new PageNumber({ font: FONT, size: pt(8), color: COLOR_LIGHT }),
+      new TextRun({
+        children: [PageNumber.CURRENT],
+        font: FONT, size: pt(8), color: COLOR_LIGHT,
+      }),
     ],
     tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
     spacing: { before: 0, after: 0 },
