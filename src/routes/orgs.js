@@ -78,47 +78,61 @@ router.patch('/me', requireAuth, async (req, res) => {
 // GET /api/orgs/members
 // Returns all members of the user's organisation with profile data
 router.get('/members', requireAuth, async (req, res) => {
-  const { data: member } = await supabaseAdmin
-    .from('organization_members')
-    .select('org_id')
-    .eq('user_id', req.user.id)
-    .single()
+  try {
+    const { data: member } = await supabaseAdmin
+      .from('organization_members')
+      .select('org_id')
+      .eq('user_id', req.user.id)
+      .single()
 
-  if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
+    if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
 
-  // Get all member user_ids for this org
-  const { data: members, error } = await supabaseAdmin
-    .from('organization_members')
-    .select('user_id, role')
-    .eq('org_id', member.org_id)
+    // Get all member user_ids for this org
+    const { data: members, error: membersError } = await supabaseAdmin
+      .from('organization_members')
+      .select('user_id, role')
+      .eq('org_id', member.org_id)
 
-  if (error) throw error
-
-  const userIds = (members || []).map(m => m.user_id)
-
-  // Fetch all profiles in one query
-  const { data: profiles } = await supabaseAdmin
-    .from('profiles')
-    .select('auth_user_id, full_name, email, verification_status, created_at')
-    .in('auth_user_id', userIds)
-
-  const profileMap = {}
-  ;(profiles || []).forEach(p => { profileMap[p.auth_user_id] = p })
-
-  const enriched = (members || []).map(m => {
-    const p = profileMap[m.user_id] || {}
-    return {
-      user_id:             m.user_id,
-      full_name:           p.full_name || null,
-      email:               p.email || null,
-      role:                m.role || 'sachverstaendige',
-      registered_at:       p.created_at || null,
-      verification_status: p.verification_status || 'pending',
-      verified_at:         null,
+    if (membersError) {
+      console.error('[MEMBERS] members query error:', membersError.message)
+      return res.status(500).json({ error: membersError.message })
     }
-  })
 
-  res.json({ members: enriched, org_id: member.org_id })
+    const userIds = (members || []).map(m => m.user_id)
+    if (userIds.length === 0) return res.json({ members: [], org_id: member.org_id })
+
+    // Fetch all profiles in one query
+    const { data: profiles, error: profilesError } = await supabaseAdmin
+      .from('profiles')
+      .select('auth_user_id, full_name, email, verification_status, created_at')
+      .in('auth_user_id', userIds)
+
+    if (profilesError) {
+      console.error('[MEMBERS] profiles query error:', profilesError.message)
+      return res.status(500).json({ error: profilesError.message })
+    }
+
+    const profileMap = {}
+    ;(profiles || []).forEach(p => { profileMap[p.auth_user_id] = p })
+
+    const enriched = (members || []).map(m => {
+      const p = profileMap[m.user_id] || {}
+      return {
+        user_id:             m.user_id,
+        full_name:           p.full_name || null,
+        email:               p.email || null,
+        role:                m.role || 'sachverstaendige',
+        registered_at:       p.created_at || null,
+        verification_status: p.verification_status || 'pending',
+        verified_at:         null,
+      }
+    })
+
+    res.json({ members: enriched, org_id: member.org_id })
+  } catch(err) {
+    console.error('[MEMBERS] Unhandled error:', err.message)
+    res.status(500).json({ error: err.message })
+  }
 })
 
 export default router
