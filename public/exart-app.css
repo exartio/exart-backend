@@ -450,8 +450,9 @@ input[type="file"] { display: none; }
   margin-left: 5px;
 }
 
-.pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2.5rem; align-items: start; }
-.plan { border: 0.5px solid var(--border); border-radius: 6px; padding: 1.75rem 1.25rem; position: relative; }
+.pricing-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-top: 2.5rem; align-items: stretch; }
+.plan { border: 0.5px solid var(--border); border-radius: 6px; padding: 1.75rem 1.25rem; position: relative; display: flex;
+  flex-direction: column;}
 .plan-featured { border: 1.5px solid var(--navy); }
 .plan-badge {
   position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
@@ -469,6 +470,7 @@ input[type="file"] { display: none; }
 .plan-features li { display: flex; align-items: flex-start; gap: 7px; font-size: 12.5px; color: var(--text-mid); margin-bottom: 8px; line-height: 1.4; }
 .plan-features li i { font-size: 13px; color: var(--gold); margin-top: 1px; flex-shrink: 0; }
 .plan-btn {
+  margin-top: auto;
   width: 100%; padding: 10px; border-radius: var(--radius); font-size: 13px;
   font-family: var(--sans); cursor: pointer; font-weight: 400;
   border: 1px solid var(--navy); background: transparent; color: var(--navy);
