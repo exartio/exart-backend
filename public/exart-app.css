@@ -601,7 +601,7 @@ body.app-page { background: var(--cream); }
    PAGE: LOGIN
    ═══════════════════════════════════════════════════════════ */
 
-.login-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1fr; }
+.login-wrap { min-height: 100vh; display: grid; grid-template-columns: 1fr 1.618fr; }
 .login-brand { background: var(--navy); display: flex; flex-direction: column; justify-content: space-between; padding: 2.5rem; }
 .login-brand-logo { display: flex; align-items: baseline; gap: 6px; text-decoration: none; }
 .login-brand-logo-mark { font-family: var(--serif); font-size: 20px; font-weight: 600; color: #fff; letter-spacing: -0.02em; }
