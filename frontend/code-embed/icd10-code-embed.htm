@@ -1,0 +1,49 @@
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Ressourcen</p>
+        <h1 class="page-title">ICD-10-GM Helfer</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:1rem;">
+      <div style="display:flex;gap:0.75rem;align-items:center;">
+        <div style="position:relative;flex:1;">
+          <i class="ti ti-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-light);font-size:15px;pointer-events:none;"></i>
+          <input type="text" id="icd-search" placeholder="Code (z. B. F20) oder Begriff (z. B. Schizophrenie)…" style="width:100%;padding:10px 12px 10px 34px;border:1px solid var(--border-mid);border-radius:5px;font-size:14px;font-family:inherit;outline:none;">
+        </div>
+        <button id="icd-clear" class="btn btn-ghost btn-sm" style="display:none;">
+          <i class="ti ti-x"></i> Löschen
+        </button>
+      </div>
+      <div id="icd-loading" style="display:none;margin-top:0.75rem;font-size:12px;color:var(--text-light);">
+        <i class="ti ti-loader"></i> Datenbank wird geladen…
+      </div>
+      <div id="icd-stats" style="margin-top:0.5rem;font-size:11px;color:var(--text-light);"></div>
+    </div>
+    <div id="icd-results"></div>
+    <div id="icd-empty" style="display:none;text-align:center;padding:3rem;color:var(--text-light);font-size:13px;">
+      <i class="ti ti-search-off" style="font-size:32px;display:block;margin-bottom:0.75rem;"></i>
+      Keine Ergebnisse für diese Suche.
+    </div>
+    <div id="icd-hint" style="text-align:center;padding:3rem;color:var(--text-light);font-size:13px;">
+      <i class="ti ti-stethoscope" style="font-size:36px;display:block;margin-bottom:0.75rem;color:var(--border-mid);"></i>
+      Code oder Diagnosebegriff eingeben.<br>
+      <span style="font-size:11px;margin-top:0.5rem;display:block;">ICD-10-GM 2025 · Quelle: BfArM / DIMDI</span>
+    </div>
+  </main>
+</div>

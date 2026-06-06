@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KI-Transparenzhinweis — exart.io</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy:       #1a2640;
+    --navy-mid:   #243350;
+    --gold:       #b89a5e;
+    --cream:      #f7f4ef;
+    --text-mid:   #4a5568;
+    --text-light: #7a8a9a;
+    --border:     rgba(26,38,64,0.1);
+    --serif:      'Playfair Display', Georgia, serif;
+    --body:       'Source Serif 4', Georgia, serif;
+    --sans:       'DM Sans', system-ui, sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; background: #fff; }
+
+  body {
+    background: #fff;
+    color: var(--text-mid);
+    font-family: var(--body);
+    font-weight: 300;
+    font-size: 16px;
+    line-height: 1.8;
+  }
+
+  /* ── Nav ──────────────────────────────────────── */
+  nav {
+    border-bottom: 1px solid var(--border);
+    padding: 0 3rem;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .nav-logo {
+    font-family: var(--serif);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--navy);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+  }
+  .nav-logo sup {
+    font-family: var(--sans);
+    font-size: 9px;
+    color: var(--gold);
+    letter-spacing: 0.1em;
+    vertical-align: super;
+  }
+  .nav-tag {
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-light);
+    letter-spacing: 0.08em;
+  }
+
+  /* ── Hero — matches landing page ─────────────── */
+  .hero {
+    background: var(--navy);
+    color: #fff;
+    padding: 5rem 2rem 4.5rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 60% at 15% 50%, rgba(184,154,94,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 70% at 85% 30%, rgba(184,154,94,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .hero-inner { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+
+  .hero-eyebrow {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.5rem;
+  }
+
+  .hero-title {
+    font-family: var(--serif);
+    font-size: clamp(1.75rem, 4vw, 2.75rem);
+    font-weight: 500;
+    color: #fff;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: 2rem;
+  }
+
+  .hero-icon {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: rgba(184,154,94,0.12);
+    border: 1px solid rgba(184,154,94,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 2rem;
+    font-size: 36px;
+    color: var(--gold);
+  }
+
+  .hero-sub {
+    font-family: var(--body);
+    font-size: 1rem;
+    font-weight: 300;
+    color: rgba(255,255,255,0.6);
+    font-style: italic;
+    margin-bottom: 2rem;
+  }
+
+  .hero-meta {
+    display: inline-flex;
+    gap: 2rem;
+    font-family: var(--sans);
+    font-size: 11.5px;
+    color: rgba(255,255,255,0.35);
+    letter-spacing: 0.05em;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ── Page wrapper ─────────────────────────────── */
+  .wrap {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 4rem 2rem 6rem;
+  }
+
+  /* ── Table of contents ────────────────────────── */
+  .toc {
+    background: var(--cream);
+    border-left: 3px solid var(--gold);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 3rem;
+  }
+
+  .toc-title {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.75rem;
+  }
+
+  .toc ol {
+    padding-left: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .toc li a {
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--text-mid);
+    text-decoration: none;
+  }
+  .toc li a:hover { color: var(--navy); text-decoration: underline; }
+
+  /* ── Sections ─────────────────────────────────── */
+  .section {
+    margin-bottom: 2.75rem;
+    scroll-margin-top: 70px;
+  }
+
+  .section-heading {
+    font-family: var(--serif);
+    font-size: 1.15rem;
+    font-weight: 500;
+    color: var(--navy);
+    margin-bottom: 0.75rem;
+    line-height: 1.35;
+  }
+
+  .section p {
+    font-size: 15px;
+    color: var(--text-mid);
+    margin-bottom: 0.9rem;
+    line-height: 1.85;
+  }
+
+  .section p:last-child { margin-bottom: 0; }
+
+  hr.rule {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2.75rem 0;
+  }
+
+  /* ── Law quote ────────────────────────────────── */
+  .law-quote {
+    background: var(--cream);
+    border-left: 3px solid var(--gold);
+    padding: 1rem 1.25rem;
+    margin: 1.25rem 0;
+  }
+
+  .law-quote-ref {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+  }
+
+  .law-quote p {
+    font-size: 14px;
+    font-style: italic;
+    color: var(--text-mid);
+    margin: 0;
+    line-height: 1.7;
+  }
+
+  /* ── Two-column list ──────────────────────────── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin: 1.25rem 0;
+  }
+
+  .col-label {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--navy);
+    margin-bottom: 0.6rem;
+  }
+  .col-label.gold { color: var(--gold); }
+
+  .col-list {
+    list-style: none;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .col-list li {
+    font-size: 13.5px;
+    color: var(--text-mid);
+    padding-left: 1rem;
+    position: relative;
+    line-height: 1.55;
+  }
+  .col-list li::before {
+    content: '–';
+    position: absolute;
+    left: 0;
+    color: var(--text-light);
+  }
+
+  /* ── Steps ────────────────────────────────────── */
+  .steps { display: flex; flex-direction: column; gap: 0.6rem; margin: 1rem 0; }
+
+  .step { display: flex; gap: 1rem; align-items: flex-start; }
+
+  .step-num {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--gold);
+    flex-shrink: 0;
+    width: 20px;
+    padding-top: 3px;
+  }
+
+  .step-body { font-size: 14.5px; color: var(--text-mid); line-height: 1.7; }
+
+  .step-body strong {
+    color: var(--navy);
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  /* ── Norm table ───────────────────────────────── */
+  .norm-table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+  .norm-table tr { border-bottom: 1px solid var(--border); }
+  .norm-table tr:last-child { border-bottom: none; }
+  .norm-table td {
+    padding: 0.55rem 0;
+    font-size: 14px;
+    color: var(--text-mid);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  .norm-table td:first-child {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--navy);
+    width: 140px;
+    padding-right: 1.25rem;
+    padding-top: 0.65rem;
+  }
+
+  /* ── Footer ───────────────────────────────────── */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 3rem;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--text-light);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  footer a { color: var(--navy); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    nav { padding: 0 1.25rem; }
+    .wrap { padding: 2.5rem 1.25rem 4rem; }
+    .two-col { grid-template-columns: 1fr; }
+    footer { padding: 1.25rem; flex-direction: column; align-items: flex-start; }
+    .hero { padding: 3.5rem 1.5rem 3rem; }
+    .hero-meta { gap: 1rem; }
+  }
+  /* Force white background on all major containers */
+  html, body, .wrap, .section, footer { background-color: #ffffff !important; }
+  .toc, .law-quote { background-color: #f7f4ef !important; }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="https://exart.io" class="nav-logo">exart<sup>.io</sup></a>
+  <span class="nav-tag">KI-Transparenzhinweis</span>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-inner">
+    <p class="hero-eyebrow">Transparenzhinweis · Öffentlich zugänglich</p>
+    <h1 class="hero-title">Einsatz Künstlicher Intelligenz<br>bei der Gutachtenerstellung</h1>
+    <div class="hero-icon">
+      <i class="ti ti-scale"></i>
+    </div>
+    <p class="hero-sub">Information für Gerichte und Verfahrensbeteiligte</p>
+    <div class="hero-meta">
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- TOC -->
+  <div class="toc">
+    <p class="toc-title">Inhalt</p>
+    <ol>
+      <li><a href="#grundsatz">Grundsatz: Eigenverantwortung des Sachverständigen</a></li>
+      <li><a href="#funktion">Funktion des KI-Systems</a></li>
+      <li><a href="#hilfsperson">Rechtliche Einordnung als Hilfsmittel</a></li>
+      <li><a href="#ablauf">Ablauf der Gutachtenerstellung</a></li>
+      <li><a href="#grenzen">Grenzen des KI-Einsatzes</a></li>
+      <li><a href="#rechtsgrundlagen">Maßgebliche Rechtsgrundlagen</a></li>
+      <li><a href="#datenschutz">Datenschutz und Datensicherheit</a></li>
+    </ol>
+  </div>
+
+  <!-- 1 -->
+  <div class="section" id="grundsatz">
+    <h2 class="section-heading">1. Grundsatz: Eigenverantwortung des Sachverständigen</h2>
+    <p>Jedes über die Plattform exart.io erstellte Gutachten wird von einem approbierten Arzt oder einer approbierten Ärztin als bestelltem Sachverständigen im Sinne von § 404 ZPO verantwortet. Der Sachverständige allein trägt die rechtliche, fachliche und persönliche Verantwortung für den gesamten Inhalt des Gutachtens.</p>
+    <p>Die Nutzung von exart.io entbindet den Sachverständigen ausdrücklich nicht von seiner Pflicht zur eigenständigen Befunderhebung, zur unparteiischen Beurteilung und zur gewissenhaften Auseinandersetzung mit dem Fall. Der Sachverständige prüft, bearbeitet und verantwortet jeden Teil des Gutachtens vor seiner Einreichung beim Gericht.</p>
+    <div class="law-quote">
+      <div class="law-quote-ref">§ 407a Abs. 2 ZPO</div>
+      <p>„Der Sachverständige hat das Gutachten persönlich zu erstatten. Er darf sich der Mitarbeit einer anderen Person nur bedienen, soweit er sie selbst überwacht und die Verantwortung für das Gutachten übernimmt."</p>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 2 -->
+  <div class="section" id="funktion">
+    <h2 class="section-heading">2. Funktion des KI-Systems</h2>
+    <p>Das KI-System von exart.io übernimmt die Rolle eines spezialisierten Fachlektors mit vertiefter Kenntnis in der medizinisch-gutachterlichen Dokumentation, insbesondere in den Bereichen Psychiatrie, Neurologie und Psychologie. Es handelt sich ausdrücklich nicht um ein medizinisches Diagnose- oder Beurteilungssystem.</p>
+    <p>Der durch das KI-System generierte Text ist ausnahmslos als Arbeitsentwurf zu verstehen — vergleichbar mit dem Entwurf eines erfahrenen Rechtsreferendars oder wissenschaftlichen Mitarbeiters. Der Sachverständige überprüft diesen Entwurf, korrigiert ihn nach fachlichem Ermessen und übernimmt ihn durch seine Unterschrift als eigene Leistung.</p>
+    <div class="two-col">
+      <div>
+        <p class="col-label">Der Sachverständige leistet</p>
+        <ul class="col-list">
+          <li>Persönliche Untersuchung und Exploration</li>
+          <li>Erhebung des psychopathologischen Befundes</li>
+          <li>Medizinische Diagnosestellung (ICD-10/11)</li>
+          <li>Fachliche Beurteilung und Kausalitätsprüfung</li>
+          <li>Beantwortung der Beweisfragen</li>
+          <li>Unterschrift und Einreichung beim Gericht</li>
+          <li>Vollständige rechtliche Verantwortung</li>
+        </ul>
+      </div>
+      <div>
+        <p class="col-label gold">Das KI-System übernimmt</p>
+        <ul class="col-list">
+          <li>Strukturierung der Akteninhalte und Unterlagen</li>
+          <li>Zusammenfassung von Vorbefunden und Attesten</li>
+          <li>Gliederung nach anwendbaren Rechtsnormen</li>
+          <li>Formulierungshilfe im juristisch-medizinischen Stil</li>
+          <li>Extraktion der gerichtlichen Beweisfragen</li>
+          <li>Erstellung eines überarbeitbaren Entwurfs</li>
+          <li>Prüfung der formalen Struktur</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 3 -->
+  <div class="section" id="hilfsperson">
+    <h2 class="section-heading">3. Rechtliche Einordnung als Hilfsmittel</h2>
+    <p>Das KI-System von exart.io ist rechtlich als technisches Hilfsmittel im Sinne des § 407a Abs. 2 ZPO einzuordnen. Die Nutzung technischer und personeller Hilfsmittel bei der Gutachtenerstellung ist nach deutschem Recht ausdrücklich zulässig, sofern der Sachverständige die Verantwortung für das Ergebnis übernimmt und die Mitarbeit selbst überwacht.</p>
+    <p>Die höchstrichterliche Rechtsprechung hat klargestellt, dass Sachverständige Hilfspersonen und technische Mittel einsetzen dürfen — von der Diktiersoftware über Schreibassistenten bis hin zu spezialisierten Dokumentenanalyse-Systemen. Maßgeblich ist stets die eigenverantwortliche Überprüfung durch den Sachverständigen.</p>
+    <div class="law-quote">
+      <div class="law-quote-ref">BGH, Beschluss vom 16.12.2010 — V ZB 139/10</div>
+      <p>„Es ist dem Sachverständigen nicht verwehrt, sich bei der Abfassung seines Gutachtens der Hilfe anderer Personen zu bedienen, wenn er die Verantwortung für das Gutachten übernimmt."</p>
+    </div>
+    <p>Gegenüber dem Gericht ist die Verwendung von Hilfsmitteln transparent offenzulegen, sofern dies für die Würdigung des Gutachtens relevant ist. exart.io stellt diese Erklärung öffentlich bereit und ermöglicht dem Sachverständigen, auf sie zu verweisen.</p>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 4 -->
+  <div class="section" id="ablauf">
+    <h2 class="section-heading">4. Ablauf der Gutachtenerstellung</h2>
+    <div class="steps">
+      <div class="step">
+        <span class="step-num">1.</span>
+        <div class="step-body"><strong>Persönliche Untersuchung durch den Sachverständigen</strong>Die Befunderhebung — Exploration, körperliche Untersuchung, AMDP-Befund, Anamnese — erfolgt ausschließlich durch den approbierten Arzt. Diese Befunde werden vom Sachverständigen in das System eingegeben.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">2.</span>
+        <div class="step-body"><strong>Bereitstellung der Falldokumentation</strong>Der Sachverständige lädt die vorliegenden Unterlagen hoch — Arztbriefe, Laborberichte, Entlassbriefe, den Gerichtsbeschluss. Das System verarbeitet diese mittels Texterkennung und strukturierter Analyse.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">3.</span>
+        <div class="step-body"><strong>KI-gestützte Entwurfserstellung</strong>Das KI-System erstellt auf Basis aller Eingaben einen vollständigen Gutachten-Entwurf in der vom Sachverständigen gewählten Struktur. Die gerichtlichen Beweisfragen werden dabei explizit adressiert.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">4.</span>
+        <div class="step-body"><strong>Eigenverantwortliche Überprüfung und Überarbeitung</strong>Der Sachverständige prüft den Entwurf vollständig, korrigiert ihn nach fachlichem Ermessen und ergänzt fehlende Informationen. Erst nach dieser Prüfung gilt der Text als Gutachten.</div>
+      </div>
+      <div class="step">
+        <span class="step-num">5.</span>
+        <div class="step-body"><strong>Unterzeichnung und Einreichung</strong>Das fertige Gutachten wird vom Sachverständigen eigenhändig unterschrieben. Mit der Unterschrift übernimmt er die alleinige rechtliche und fachliche Verantwortung für den gesamten Inhalt.</div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 5 -->
+  <div class="section" id="grenzen">
+    <h2 class="section-heading">5. Grenzen des KI-Einsatzes</h2>
+    <p>Das KI-System von exart.io ist kein Ersatz für die ärztliche Beurteilung. Das System stellt keine Diagnosen, trifft keine medizinischen Kausalitätsurteile, bewertet keine Glaubwürdigkeit von Angaben und gibt keine gutachterlichen Empfehlungen aus eigenem Ermessen ab. Alle diese Urteile liegen ausschließlich beim approbierten Sachverständigen.</p>
+    <p>Das System arbeitet ausschließlich auf Basis der vom Sachverständigen bereitgestellten Informationen. Es hat keine eigenständige Datenbankabfrage-Funktion, keinen Zugriff auf externe Patientendaten und gibt keine eigenständigen Risikoeinschätzungen oder Therapieempfehlungen ab.</p>
+    <p>Sollten im generierten Entwurf Formulierungen erscheinen, die nicht dem fachlichen Urteil des Sachverständigen entsprechen, ist er verpflichtet, diese zu korrigieren oder zu streichen. Dies geschieht im Rahmen seiner ohnehin bestehenden Überprüfungspflicht nach § 407a ZPO.</p>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 6 -->
+  <div class="section" id="rechtsgrundlagen">
+    <h2 class="section-heading">6. Maßgebliche Rechtsgrundlagen</h2>
+    <table class="norm-table">
+      <tbody>
+        <tr><td>§ 404 ZPO</td><td>Bestellung des Sachverständigen durch das Gericht; Grundlage der Sachverständigenpflicht.</td></tr>
+        <tr><td>§ 407 ZPO</td><td>Pflicht zur Gutachtenerstattung; Verpflichtung zu Unparteilichkeit und Gewissenhaftigkeit.</td></tr>
+        <tr><td>§ 407a ZPO</td><td>Pflicht zur persönlichen Erstattung; ausdrückliche Zulässigkeit der Hinzuziehung von Hilfspersonen unter Eigenverantwortung.</td></tr>
+        <tr><td>§ 408 ZPO</td><td>Ablehnung des Gutachterauftrags; Befangenheitsregelungen.</td></tr>
+        <tr><td>§ 410 ZPO</td><td>Eidesleistung des Sachverständigen; persönliche Verantwortung für den Gutachteninhalt.</td></tr>
+        <tr><td>§ 411 ZPO</td><td>Frist zur Gutachtenerstattung; Vergütungsanspruch nach JVEG.</td></tr>
+        <tr><td>§§ 1814 ff. BGB</td><td>Rechtliche Betreuung; Voraussetzungen, Aufgabenkreise und Verhältnismäßigkeit.</td></tr>
+        <tr><td>§ 1831 BGB</td><td>Genehmigung betreuungsrechtlicher Unterbringung; Voraussetzungen der Unterbringung.</td></tr>
+        <tr><td>§ 1832 BGB</td><td>Ärztliche Zwangsmaßnahme; kumulative Voraussetzungen; BVerfG-Rechtsprechung 2011, 2013.</td></tr>
+        <tr><td>§ 286 FamFG</td><td>Sachverständigengutachten in Betreuungsverfahren; Anforderungen an Inhalt und Form.</td></tr>
+        <tr><td>BO für Ärzte</td><td>Ärztliche Berufsordnung: Sorgfaltspflicht, Eigenverantwortung, Dokumentationspflicht.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <hr class="rule">
+
+  <!-- 7 -->
+  <div class="section" id="datenschutz">
+    <h2 class="section-heading">7. Datenschutz und Datensicherheit</h2>
+    <p>exart.io verarbeitet personenbezogene Daten ausschließlich auf Grundlage der Datenschutz-Grundverordnung (DSGVO) und des Bundesdatenschutzgesetzes (BDSG). Alle Daten werden auf Servern in der Europäischen Union verarbeitet und gespeichert.</p>
+    <p>Patientendaten werden ausschließlich für die Erstellung des jeweiligen Gutachtens verwendet. Sie werden nicht für das Training von KI-Modellen genutzt, nicht an Dritte weitergegeben und nicht mit anderen Fällen verknüpft. Die Verarbeitung erfolgt auf der Rechtsgrundlage des Art. 9 Abs. 2 lit. h DSGVO (Verarbeitung zu Zwecken der Gesundheitsversorgung durch Berufsgeheimnisträger).</p>
+    <p>Die Nutzung von exart.io ist auf approbierte Ärztinnen und Ärzte beschränkt. Jedes Konto wird vor der Aktivierung durch Vorlage eines Approbationsnachweises manuell verifiziert. Dies stellt sicher, dass Patientendaten ausschließlich von zur ärztlichen Schweigepflicht verpflichteten Personen verarbeitet werden.</p>
+  </div>
+
+  <hr class="rule">
+
+  <p style="font-size:13px;color:var(--text-light);font-family:var(--sans);line-height:1.7;">
+    Diese Seite ist öffentlich zugänglich und richtet sich an Gerichte, Betreuungsbehörden, Verfahrenspflegschaftsträger und sonstige Auftraggeber von Sachverständigengutachten. Sie darf ohne Einschränkung zitiert und verlinkt werden.<br>
+    Stand: Juni 2026 · <a href="mailto:kontakt@exart.io" style="color:var(--navy);">kontakt@exart.io</a>
+  </p>
+
+</div>
+
+<footer>
+  <span>
+    <a href="https://exart.io">exart.io</a> &nbsp;·&nbsp;
+    <a href="https://exart.io/impressum">Impressum</a> &nbsp;·&nbsp;
+    <a href="https://exart.io/datenschutz">Datenschutzerklärung</a>
+  </span>
+  <span>© 2026 K. Schlaaff · Magdeburg</span>
+</footer>
+
+</body>
+</html>

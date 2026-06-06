@@ -1,0 +1,196 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Leitfaden</p>
+        <h1 class="page-title">Psychiatrische Begutachtung</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-info-circle"></i> Grundlagen und Auftrag</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;">
+        Der Sachverständige wird vom Gericht gemäß <strong>§ 404 ZPO</strong> bestellt und ist zur unparteiischen, gewissenhaften Gutachtenerstattung verpflichtet. Das Gutachten dient der Entscheidungsfindung des Gerichts, nicht der Interessenvertretung einer Partei. Der Gutachter ist an die Beweisfragen des Gerichts gebunden und darf den Auftrag nicht eigenmächtig erweitern oder einschränken.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list-check"></i> Struktur eines psychiatrischen Gutachtens</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">I</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Auftraggeber und Auftrag</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Gericht, Aktenzeichen, Beauftragungsdatum, Beweisfragen des Gerichts.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">II</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Angaben zur begutachteten Person</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Name (ggf. anonymisiert), Geburtsdatum, Wohnort, aktuelle Unterbringungssituation.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">III</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Grundlagen des Gutachtens</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Untersuchungsdatum und -ort, verwendete Akten und Unterlagen, Gesprächsdauer, Anwesenheit Dritter.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">IV</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Vorgeschichte und Aktenlage</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Zusammenfassung der Krankengeschichte, Vorbehandlungen, Vordiagnosen, soziale Anamnese.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">V</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Untersuchungsbefund</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Allgemeiner körperlicher Befund, neurologischer Befund, psychiatrischer Befund (AMDP-orientiert), neuropsychologischer Befund soweit relevant.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">VI</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Diagnose</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">ICD-10/ICD-11 Diagnosen mit Kodierung. Differentialdiagnosen soweit relevant.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">VII</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Beurteilung</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Kausalität zwischen Diagnose und funktioneller Beeinträchtigung. Beantwortung der Beweisfragen des Gerichts.</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;">
+          <span style="background:var(--navy);color:#fff;font-size:11px;font-weight:600;padding:3px 8px;border-radius:3px;flex-shrink:0;margin-top:2px;">VIII</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:2px;">Zusammenfassung und Empfehlung</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.7;">Klare, knappe Schlussaussagen. Empfehlung an das Gericht.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-brain"></i> AMDP-Befunderhebung</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:1rem;">
+        Das <strong>AMDP-System</strong> (Arbeitsgemeinschaft für Methodik und Dokumentation in der Psychiatrie) bietet eine standardisierte Grundlage zur Befunderhebung und -dokumentation.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Bewusstsein &amp; Orientierung</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Bewusstseinslage, zeitliche/örtliche/zur Person/situative Orientierung</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Gedächtnis &amp; Kognition</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Merkfähigkeit, Kurz- und Langzeitgedächtnis, Konzentration, Auffassung</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Formales Denken</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Denktempo, Gedankengang, Kohärenz, Perseveration, Gedankendrängen/-sperrung</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Inhaltliches Denken</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Wahngedanken, Überwertige Ideen, Zwangsgedanken</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Wahrnehmung</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Illusionen, Halluzinationen (optisch, akustisch, taktil, olfaktorisch)</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:6px;">Affektivität &amp; Antrieb</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Stimmungslage, Affektmodulation, Antrieb, Psychomotorik, Suizidalität</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-alert-triangle"></i> Häufige Fallstricke</span>
+      </div>
+      <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;color:var(--text-mid);line-height:2;">
+        <li>Diagnosen ohne ausreichende Befundgrundlage formulieren</li>
+        <li>Parteiliche Formulierungen oder wertende Sprache verwenden</li>
+        <li>Beweisfragen des Gerichts nicht vollständig beantworten</li>
+        <li>Fehlende Trennung zwischen Befund und Beurteilung</li>
+        <li>Unzureichende Dokumentation des Untersuchungsgesprächs</li>
+        <li>Honoraranspruch nicht fristgerecht (innerhalb 3 Monaten) geltend machen</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-book"></i> Relevante Rechtsgrundlagen</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:80px;">§ 404 ZPO</span>
+          <span style="color:var(--text-mid);">Bestellung des Sachverständigen durch das Gericht</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:80px;">§ 407 ZPO</span>
+          <span style="color:var(--text-mid);">Pflicht zur Gutachtenerstattung</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:80px;">§ 408 ZPO</span>
+          <span style="color:var(--text-mid);">Ablehnung des Auftrags (Befangenheit, Unzumutbarkeit)</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:80px;">§ 411 ZPO</span>
+          <span style="color:var(--text-mid);">Frist zur Gutachtenerstattung</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:80px;">JVEG</span>
+          <span style="color:var(--text-mid);">Vergütung des Sachverständigen (Justizvergütungsgesetz)</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

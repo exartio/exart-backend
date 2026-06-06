@@ -1,0 +1,161 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  renderSidebar('vorgutachten')
+
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  await showDemoBannerIfNeeded()
+
+  // ── Load statements ───────────────────────────────────────
+  async function loadStatements() {
+    const loadingEl = document.getElementById('stmt-loading')
+    const listEl    = document.getElementById('statements-list')
+    const countEl   = document.getElementById('stmt-count')
+
+    try {
+      const { statements } = await api.get('/api/uploads/statements')
+      if (loadingEl) loadingEl.hidden = true
+      listEl.innerHTML = ''
+
+      if (!statements || statements.length === 0) {
+        listEl.innerHTML = '<li style="font-size:13px;color:var(--text-light);padding:1rem 0;">Noch keine Vorgutachten hochgeladen.</li>'
+        if (countEl) { countEl.textContent = '0'; countEl.className = 'badge badge-draft' }
+        return
+      }
+
+      if (countEl) { countEl.textContent = statements.length; countEl.className = 'badge badge-active' }
+
+      statements.forEach(s => {
+        const li = document.createElement('li')
+        li.className = 'doc-item'
+        const statusMap = {
+          ready:      ['badge-active',  'Bereit'],
+          processing: ['badge-pending', 'Verarbeitung…'],
+          pending:    ['badge-pending', 'Ausstehend'],
+          error:      ['badge-error',   'Fehler'],
+        }
+        const [cls, label] = statusMap[s.status] || statusMap.pending
+        li.innerHTML = `
+          <div class="doc-item-icon"><i class="ti ti-file-text"></i></div>
+          <div style="flex:1;min-width:0;">
+            <div class="doc-item-name">${escapeHtml(s.file_name)}</div>
+            <div style="font-size:11px;color:var(--text-light);margin-top:2px;">${formatDate(s.created_at)}</div>
+          </div>
+          <span class="badge ${cls}" style="flex-shrink:0;">${label}</span>
+          <button class="btn btn-ghost btn-sm" onclick="deleteStatement('${s.id}', this)" style="margin-left:0.5rem;color:var(--error);flex-shrink:0;">
+            <i class="ti ti-trash"></i>
+          </button>
+        `
+        listEl.appendChild(li)
+
+        if (s.status === 'pending' || s.status === 'processing') {
+          pollStatementStatus(s.id, li.querySelector('.badge'))
+        }
+      })
+    } catch(err) {
+      if (loadingEl) { loadingEl.className = 'msg msg-error'; loadingEl.innerHTML = `<i class="ti ti-alert-circle"></i> ${err.message}` }
+    }
+  }
+
+  function pollStatementStatus(id, badgeEl) {
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.get(`/api/uploads/statement/${id}/status`)
+        const statusMap = { ready: ['badge-active','Bereit'], processing: ['badge-pending','Verarbeitung…'], error: ['badge-error','Fehler'] }
+        const [cls, label] = statusMap[data.status] || ['badge-pending','Ausstehend']
+        if (badgeEl) { badgeEl.className = `badge ${cls}`; badgeEl.textContent = label }
+        if (data.status === 'ready' || data.status === 'error') {
+          clearInterval(interval)
+          if (data.status === 'ready') await loadStatements()
+        }
+      } catch { clearInterval(interval) }
+    }, 3000)
+  }
+
+  // ── Confirm modal ────────────────────────────────────────
+  function showConfirm(onConfirm) {
+    const overlay = document.getElementById('confirm-modal-overlay')
+    const okBtn   = document.getElementById('confirm-modal-ok')
+    const cancelBtn = document.getElementById('confirm-modal-cancel')
+    if (!overlay) { onConfirm(); return }
+
+    overlay.style.display = 'flex'
+
+    const close = () => { overlay.style.display = 'none'; okBtn.removeEventListener('click', handleOk) }
+    const handleOk = () => { close(); onConfirm() }
+
+    okBtn.addEventListener('click', handleOk, { once: true })
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  window.deleteStatement = async (id, btn) => {
+    showConfirm(async () => {
+      btn.disabled = true
+      try {
+        await api.delete(`/api/uploads/statement/${id}`)
+        await loadStatements()
+      } catch(err) { alert(err.message); btn.disabled = false }
+    })
+  }
+
+  await loadStatements()
+
+  // ── Upload ────────────────────────────────────────────────
+  document.getElementById('upload-statement')?.addEventListener('change', e => {
+    const btn = document.getElementById('upload-stmt-btn')
+    if (btn) btn.style.display = e.target.files?.length > 0 ? 'inline-flex' : 'none'
+  })
+
+  document.getElementById('upload-stmt-btn')?.addEventListener('click', async () => {
+    const btn       = document.getElementById('upload-stmt-btn')
+    const fileInput = document.getElementById('upload-statement')
+    const statusEl  = document.getElementById('upload-stmt-status')
+    const files     = fileInput?.files
+    if (!files || files.length === 0) return
+
+    btn.disabled = true
+    setStatus(statusEl, `${files.length} Datei(en) werden hochgeladen…`, 'info')
+
+    try {
+      for (const file of files) {
+        const fd = new FormData()
+        fd.append('file', file)
+        await api.upload('/api/uploads/statement', fd)
+      }
+      setStatus(statusEl, 'Hochgeladen — RAG-Verarbeitung läuft…', 'success')
+      fileInput.value = ''
+      btn.style.display = 'none'
+      await loadStatements()
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+    }
+    btn.disabled = false
+  })
+
+  // ── Logout ────────────────────────────────────────────────
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setStatus(el, text, type) {
+    if (!el) return
+    el.hidden = false
+    el.className = `msg msg-${type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'}`
+    el.innerHTML = `<i class="ti ti-${type === 'error' ? 'alert-circle' : type === 'success' ? 'circle-check' : 'loader-2'}"></i> ${text}`
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  }
+
+})()
+</script>

@@ -1,0 +1,128 @@
+<div class="login-wrap">
+
+  <div class="login-brand">
+    <a href="/" class="login-brand-logo">
+      <span class="login-brand-logo-mark">exart</span>
+      <span class="login-brand-logo-sub">.io</span>
+    </a>
+    <div class="login-brand-body">
+      <p class="login-brand-quote">„Sicherheit beginnt mit dem Schutz des Zugangs."</p>
+    </div>
+    <div class="login-brand-trust">
+      <div class="login-brand-trust-item">
+        <i class="ti ti-shield-lock"></i> Ende-zu-Ende-verschlüsselt
+      </div>
+      <div class="login-brand-trust-item">
+        <i class="ti ti-lock"></i> Passwörter werden nie im Klartext gespeichert
+      </div>
+    </div>
+  </div>
+
+  <div class="login-form-panel">
+    <div class="login-form-box">
+
+      <h1>Passwort zurücksetzen</h1>
+
+      <!-- Step 1: request reset -->
+      <div id="reset-request-form">
+        <p class="login-sub">Geben Sie Ihre E-Mail-Adresse ein. Wir senden Ihnen einen Link zum Zurücksetzen Ihres Passworts.</p>
+
+        <div id="reset-error" class="msg msg-error" hidden>
+          <i class="ti ti-alert-circle"></i><span></span>
+        </div>
+        <div id="reset-success" class="msg msg-success" hidden>
+          <i class="ti ti-circle-check"></i><span></span>
+        </div>
+
+        <div class="field">
+          <label for="reset-email">E-Mail-Adresse</label>
+          <input type="email" id="reset-email" placeholder="dr.muster@praxis.de" autocomplete="email">
+        </div>
+        <button id="reset-submit-btn" class="btn btn-primary btn-lg" style="width:100%;">
+          <i class="ti ti-mail"></i> Reset-Link senden
+        </button>
+        <p class="login-footer-note">
+          <a href="/login">Zurück zur Anmeldung</a>
+        </p>
+      </div>
+
+      <!-- Step 2: set new password (shown when ?type=recovery in URL) -->
+      <div id="new-password-form" style="display:none;">
+        <p class="login-sub">Wählen Sie ein neues Passwort für Ihr Konto.</p>
+
+        <div id="newpw-error" class="msg msg-error" hidden>
+          <i class="ti ti-alert-circle"></i><span></span>
+        </div>
+
+        <div class="field">
+          <label for="new-pw">Neues Passwort</label>
+          <input type="password" id="new-pw" placeholder="Min. 8 Zeichen" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label for="new-pw-confirm">Passwort bestätigen</label>
+          <input type="password" id="new-pw-confirm" placeholder="••••••••" autocomplete="new-password">
+        </div>
+        <button id="newpw-submit-btn" class="btn btn-primary btn-lg" style="width:100%;">
+          <i class="ti ti-lock"></i> Passwort speichern
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(async function() {
+  const params = new URLSearchParams(window.location.hash.replace('#', '?'))
+  if (params.get('type') === 'recovery') {
+    document.getElementById('reset-request-form').style.display = 'none'
+    document.getElementById('new-password-form').style.display = 'block'
+  }
+
+  document.getElementById('reset-submit-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('reset-submit-btn')
+    const email = document.getElementById('reset-email').value.trim()
+    const errEl = document.getElementById('reset-error')
+    const sucEl = document.getElementById('reset-success')
+    if (!email) { showMsg(errEl, 'Bitte E-Mail-Adresse eingeben.'); return }
+    btn.disabled = true
+    btn.textContent = 'Wird gesendet…'
+    const { error } = await _supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: window.location.origin + '/reset-password'
+    })
+    if (error) {
+      showMsg(errEl, error.message)
+      btn.disabled = false
+      btn.textContent = 'Reset-Link senden'
+    } else {
+      errEl.hidden = true
+      showMsg(sucEl, 'E-Mail gesendet. Bitte prüfen Sie Ihren Posteingang.')
+      btn.disabled = true
+    }
+  })
+
+  document.getElementById('newpw-submit-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('newpw-submit-btn')
+    const pw = document.getElementById('new-pw').value
+    const pwc = document.getElementById('new-pw-confirm').value
+    const errEl = document.getElementById('newpw-error')
+    if (pw.length < 8) { showMsg(errEl, 'Passwort muss mindestens 8 Zeichen lang sein.'); return }
+    if (pw !== pwc) { showMsg(errEl, 'Passwörter stimmen nicht überein.'); return }
+    btn.disabled = true
+    btn.textContent = 'Wird gespeichert…'
+    const { error } = await _supabase.auth.updateUser({ password: pw })
+    if (error) {
+      showMsg(errEl, error.message)
+      btn.disabled = false
+      btn.textContent = 'Passwort speichern'
+    } else {
+      window.location.href = '/dashboard'
+    }
+  })
+
+  function showMsg(el, text) {
+    el.hidden = false
+    el.querySelector('span').textContent = text
+  }
+})()
+</script>

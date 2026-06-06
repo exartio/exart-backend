@@ -1,0 +1,63 @@
+<!-- ============================================================
+  exart.io — Onboarding (create organisation)
+  Webflow page: /onboarding
+  Add to page custom code → Before </body> tag
+  ============================================================
+
+  Required Webflow elements:
+    #user-greeting      — "Willkommen, [Name]"
+    #org-name-input     — organisation name input
+    #org-slug-input     — slug input (auto-filled from name)
+    #create-org-btn     — submit button
+    #onboarding-error   — error text
+  ============================================================ -->
+
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  const ctx = await getOrgContext()
+  if (ctx.org) { window.location.href = '/dashboard'; return }
+
+  const greeting = document.getElementById('user-greeting')
+  if (greeting) {
+    const name = session.user?.user_metadata?.full_name || session.user?.email
+    greeting.textContent = `Willkommen, ${name}`
+  }
+
+  document.getElementById('org-name-input')?.addEventListener('input', (e) => {
+    const slugEl = document.getElementById('org-slug-input')
+    if (!slugEl) return
+    slugEl.value = e.target.value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+  })
+
+  document.getElementById('create-org-btn')?.addEventListener('click', async (e) => {
+    e.preventDefault()
+    const btn = e.target
+    const name = document.getElementById('org-name-input')?.value.trim()
+    const slug = document.getElementById('org-slug-input')?.value.trim()
+    const errorEl = document.getElementById('onboarding-error')
+
+    if (!name || !slug) {
+      if (errorEl) { errorEl.textContent = 'Bitte alle Felder ausfüllen.'; errorEl.hidden = false; }
+      return
+    }
+
+    btn.disabled = true
+    btn.textContent = 'Erstelle...'
+
+    try {
+      await api.post('/api/orgs', { name, slug })
+      window.location.href = '/dashboard'
+    } catch (err) {
+      if (errorEl) { errorEl.textContent = err.message; errorEl.hidden = false; }
+      btn.disabled = false
+      btn.textContent = 'Organisation erstellen'
+    }
+  })
+})()
+</script>

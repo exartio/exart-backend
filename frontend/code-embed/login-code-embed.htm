@@ -1,0 +1,116 @@
+
+<div class="login-wrap">
+
+  <!-- LEFT: Brand panel -->
+  <div class="login-brand">
+    <a href="/" class="login-brand-logo">
+      <span class="login-brand-logo-mark">exart</span>
+      <span class="login-brand-logo-sub">.io</span>
+    </a>
+
+    <div class="login-brand-body">
+      <p class="login-brand-quote">„Die generierten Gutachten entsprechen genau dem Präzisionsniveau, das Amtsgerichte im Betreuungsverfahren erwarten."</p>
+      <p class="login-brand-attr">Dr. med. K. Berger · Forensische Psychiaterin, Hamburg</p>
+    </div>
+
+    <div class="login-brand-trust">
+      <div class="login-brand-trust-item">
+        <i class="ti ti-certificate"></i>
+        Nur für approbierte Ärzte
+      </div>
+      <div class="login-brand-trust-item">
+        <i class="ti ti-shield-lock"></i>
+        DSGVO-konform · Datenhaltung in der EU
+      </div>
+      <div class="login-brand-trust-item">
+        <i class="ti ti-eye-off"></i>
+        Kein KI-Training mit Ihren Daten
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Form panel -->
+  <div class="login-form-panel">
+    <div class="login-form-box">
+
+      <h1>Willkommen zurück</h1>
+      <p class="login-sub">Melden Sie sich an oder erstellen Sie ein Konto.</p>
+
+      <!-- Tab switcher -->
+      <div id="auth-tabs" class="auth-tabs">
+        <button id="tab-login" class="auth-tab active">Anmelden</button>
+        <button id="tab-register" class="auth-tab">Registrieren</button>
+      </div>
+
+      <!-- Error / success messages -->
+      <div id="auth-error" class="msg msg-error" hidden>
+        <i class="ti ti-alert-circle"></i>
+        <span id="auth-error-text"></span>
+      </div>
+      <div id="auth-success" class="msg msg-success" hidden>
+        <i class="ti ti-circle-check"></i>
+        <span id="auth-success-text"></span>
+      </div>
+
+      <!-- LOGIN FORM -->
+      <div id="login-form">
+        <div class="field">
+          <label for="login-email">E-Mail-Adresse</label>
+          <input type="email" id="login-email" placeholder="dr.mueller@praxis.de" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="login-password">Passwort</label>
+          <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <button id="login-submit" class="btn btn-primary btn-lg" style="width:100%;">
+          <i class="ti ti-login"></i> Anmelden
+        </button>
+        <p class="login-footer-note">
+          <a href="/reset-password">Passwort vergessen?</a>
+        </p>
+      </div>
+
+      <!-- REGISTER FORM -->
+      <div id="register-form" style="display:none;">
+        <div class="field">
+          <label for="reg-name">Vollständiger Name</label>
+          <input type="text" id="reg-name" placeholder="Dr. med. Erika Muster" autocomplete="name">
+        </div>
+        <div class="field">
+          <label for="reg-email">E-Mail-Adresse</label>
+          <input type="email" id="reg-email" placeholder="dr.muster@praxis.de" autocomplete="email">
+        </div>
+        <div class="field">
+          <label for="reg-password">Passwort</label>
+          <input type="password" id="reg-password" placeholder="Min. 8 Zeichen" autocomplete="new-password">
+          <p class="field-hint">Mindestens 8 Zeichen. Ein starkes Passwort wird empfohlen.</p>
+        </div>
+        <button id="reg-submit" class="btn btn-primary btn-lg" style="width:100%;">
+          <i class="ti ti-user-plus"></i> Konto erstellen
+        </button>
+        <p class="login-footer-note">
+          Mit der Registrierung akzeptieren Sie unsere
+          <a href="/nutzungsbedingungen">Nutzungsbedingungen</a> und
+          <a href="/datenschutz">Datenschutzerklärung</a>.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerkl&auml;rung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

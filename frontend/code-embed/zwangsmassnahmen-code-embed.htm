@@ -1,0 +1,161 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Leitfaden</p>
+        <h1 class="page-title">Zwangsmaßnahmen</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:rgba(184,64,64,0.2);">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-alert-triangle" style="color:var(--error);"></i> Grundsatz</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;">
+        Zwangsmaßnahmen — insbesondere die <strong>ärztliche Zwangsbehandlung</strong> — stellen einen der schwersten Eingriffe in die körperliche Unversehrtheit und Selbstbestimmung dar. Sie sind nur unter strengsten Voraussetzungen und nach sorgfältiger Prüfung aller Alternativen zulässig. Das Bundesverfassungsgericht hat die Anforderungen in mehreren Entscheidungen präzisiert (u.a. BVerfG 2011, 2013).
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-scale"></i> Ärztliche Zwangsbehandlung § 1832 BGB</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:1rem;">Kumulativ müssen alle folgenden Voraussetzungen vorliegen:</p>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">1</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Krankheitsbedingte Einsichtsunfähigkeit</strong> — Die betroffene Person kann aufgrund der psychischen Erkrankung die Notwendigkeit der Behandlung nicht erkennen oder nach dieser Einsicht handeln.</div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">2</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Erheblicher gesundheitlicher Schaden</strong> — Ohne Behandlung droht ein erheblicher Schaden für die Gesundheit der Person.</div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">3</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Scheitern aller zumutbaren einwilligungsbasierten Alternativen</strong> — Es wurden ernsthafte und dokumentierte Versuche unternommen, die Zustimmung der Person zu erlangen.</div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">4</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Verhältnismäßigkeit</strong> — Die Zwangsmaßnahme ist das mildeste geeignete Mittel. Nutzen überwiegt eindeutig das Leid der Maßnahme.</div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">5</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Stationäre Behandlung</strong> — Die Zwangsmaßnahme darf nur in einem Krankenhaus im Rahmen einer stationären Behandlung durchgeführt werden.</div>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;padding:12px 14px;background:var(--cream);border-radius:5px;">
+          <span style="background:rgba(184,64,64,0.15);color:var(--error);font-size:11px;font-weight:700;padding:2px 7px;border-radius:3px;flex-shrink:0;margin-top:1px;">6</span>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Gerichtliche Genehmigung</strong> — Zwingend erforderlich, mit Ausnahme von Gefahr im Verzug (sofortige Dokumentationspflicht).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list"></i> Arten von Zwangsmaßnahmen</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">Ärztliche Zwangsbehandlung</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Medikamentöse Behandlung ohne Einwilligung. Strenge Voraussetzungen nach § 1832 BGB.</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">Mechanische Fixierung</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Körperliche Ruhigstellung. Gerichtliche Genehmigung erforderlich. Regelmäßige Überprüfung und Dokumentation.</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">Freiheitsentziehende Maßnahmen</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Abschließen, Bettgitter bei regelmäßiger Anwendung. § 1831 Abs. 4 BGB, gerichtliche Genehmigung erforderlich.</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:12px;font-weight:600;color:var(--navy);margin-bottom:4px;">Gefahr im Verzug</div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Ausnahme: Sofortmaßnahme ohne Genehmigung möglich, aber unverzügliche gerichtliche Prüfung erforderlich.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-writing"></i> Gutachterliche Beurteilung</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:0.75rem;">
+        Bei Begutachtung im Kontext von Zwangsmaßnahmen sind folgende Punkte besonders sorgfältig zu dokumentieren:
+      </p>
+      <ul style="margin:0;padding-left:1.25rem;font-size:13.5px;color:var(--text-mid);line-height:2;">
+        <li>Nachweis der krankheitsbedingten Einsichtsunfähigkeit (nicht nur Ablehnung)</li>
+        <li>Dokumentation der Versuche zur Erlangung der Einwilligung</li>
+        <li>Nutzen-Risiko-Abwägung der spezifischen Maßnahme</li>
+        <li>Prognose der Behandlungsdauer und -notwendigkeit</li>
+        <li>Mögliche Alternativen und warum diese nicht ausreichen</li>
+        <li>Patientenverfügung oder Vorsorgevollmacht berücksichtigt?</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-book"></i> Relevante Normen und Rechtsprechung</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">§ 1832 BGB</span>
+          <span style="color:var(--text-mid);">Ärztliche Zwangsmaßnahme</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">§ 1831 Abs. 4 BGB</span>
+          <span style="color:var(--text-mid);">Freiheitsentziehende Maßnahmen im Betreuungsrecht</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">§§ 326 ff. FamFG</span>
+          <span style="color:var(--text-mid);">Genehmigungsverfahren für Zwangsmaßnahmen</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">BVerfG 2011</span>
+          <span style="color:var(--text-mid);">Grundsatzentscheidung zur Zwangsbehandlung (2 BvR 882/09)</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">BVerfG 2013</span>
+          <span style="color:var(--text-mid);">Anforderungen an Zwangsbehandlung im Maßregelvollzug</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:160px;">Art. 2 Abs. 2 GG</span>
+          <span style="color:var(--text-mid);">Recht auf körperliche Unversehrtheit und Freiheit</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

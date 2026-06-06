@@ -1,0 +1,57 @@
+<script>
+(async function() {
+  const token   = new URLSearchParams(window.location.search).get('token')
+  const msgEl   = document.getElementById('invite-msg')
+  const errBox  = document.getElementById('invite-error-box')
+  const actionEl = document.getElementById('invite-action')
+
+  function showError(msg) {
+    if (msgEl) msgEl.style.display = 'none'
+    if (errBox) { errBox.style.display = 'block'; errBox.textContent = msg }
+    if (actionEl) {
+      actionEl.style.display = 'block'
+      actionEl.innerHTML = '<a href="/dashboard" style="font-size:13px;color:var(--navy);">← Zum Dashboard</a>'
+    }
+  }
+
+  if (!token) { showError('Kein Einladungstoken angegeben.'); return }
+
+  // Check if logged in
+  const { data: { session } } = await _supabase.auth.getSession()
+
+  if (!session) {
+    // Not logged in — redirect to login, come back after
+    const returnPath = encodeURIComponent(window.location.pathname + window.location.search)
+    window.location.href = `/login?redirect=${returnPath}`
+    return
+  }
+
+  // Validate token first
+  try {
+    const r = await fetch(`${EXART_CONFIG.apiUrl}/api/invitations/accept?token=${token}`)
+    const data = await r.json()
+
+    if (!data.valid) {
+      const errorMessages = {
+        not_found:   'Diese Einladung wurde nicht gefunden oder ist ungültig.',
+        already_used: 'Diese Einladung wurde bereits verwendet.',
+        expired:     'Diese Einladung ist abgelaufen. Bitte fordern Sie eine neue an.',
+      }
+      showError(data.error || errorMessages[data.reason] || 'Ungültige Einladung.')
+      return
+    }
+
+    if (msgEl) msgEl.textContent = `Einladung zur Organisation "${data.org_name}" wird angenommen…`
+
+    // Confirm acceptance
+    await api.post('/api/invitations/confirm', { token })
+
+    if (msgEl) msgEl.textContent = 'Einladung angenommen! Sie werden weitergeleitet…'
+    setTimeout(() => { window.location.href = '/dashboard?invite_success=true' }, 1500)
+
+  } catch(err) {
+    showError(err.message || 'Fehler beim Verarbeiten der Einladung.')
+  }
+
+})()
+</script>

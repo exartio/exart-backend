@@ -1,0 +1,236 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">JVEG-Abrechnung</p>
+        <h1 class="page-title">Leistungsverzeichnis</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <!-- Step 1: Fall & Version -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-folder"></i> Fall und Gutachtenversion</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="abr-case-select">Fall auswählen</label>
+          <select id="abr-case-select">
+            <option value="">— Fall wählen —</option>
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="abr-output-select">Version</label>
+          <select id="abr-output-select" disabled>
+            <option value="">— zuerst Fall wählen —</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 2: Gutachten details -->
+    <div class="card" id="abr-details-card" style="display:none;">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-file-text"></i> Gutachten-Details</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Zeichen (inkl. Leerzeichen)</div>
+          <div style="font-size:18px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-char-count">—</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Schreibgebühr (§ 12 JVEG)</div>
+          <div style="font-size:18px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-schreib-fee">—</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">1,50 € / 1.000 Anschläge</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Seiten (ca.)</div>
+          <div style="font-size:18px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-pages">—</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">~1.800 Zeichen / Seite</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3: Stundensatz -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-clock-euro"></i> Stundensatz nach JVEG § 9</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:flex-end;">
+        <div class="field" style="margin:0;">
+          <label for="abr-honorar-group">Honorargruppe</label>
+          <select id="abr-honorar-group">
+            <option value="87">M1 — Einfache gutachterliche Beurteilung (87,00 €/h)</option>
+            <option value="98">M2 — Durchschnittlicher Schwierigkeitsgrad (98,00 €/h)</option>
+            <option value="131" selected>M3 — Hoher Schwierigkeitsgrad, Psychiatrie (131,00 €/h)</option>
+          </select>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Ausgewählter Stundensatz</div>
+          <div style="font-size:20px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-rate-display">131,00 €/h</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">gültig ab 01.06.2025 (KostBRÄG 2025)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 4: Kopiegebühren -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-copy"></i> Kopiegebühren (§ 12 JVEG)</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        SW-Kopien: 0,50 €/Seite (bis 50 Seiten), danach 0,15 €/Seite. Farbkopien: 1,00 €/Seite (bis 50 Seiten), danach 0,30 €/Seite.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="abr-copies-sw">SW-Kopien (Seiten)</label>
+          <input type="number" id="abr-copies-sw" min="0" value="0" placeholder="0">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="abr-copies-color">Farbkopien (Seiten)</label>
+          <input type="number" id="abr-copies-color" min="0" value="0" placeholder="0">
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;align-self:flex-end;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Kopiegebühren gesamt</div>
+          <div style="font-size:18px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-copies-total">0,00 €</div>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- Post- und Telekommunikation -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-mail"></i> Post- und Telekommunikation (§ 12 JVEG)</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        Pauschale für Porto, Telefon und Kommunikationskosten. Maximal 15,00 € gemäß § 12 Abs. 1 S. 2 Nr. 3 JVEG.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;align-items:flex-end;">
+        <div class="field" style="margin:0;">
+          <label for="abr-post-fee">Betrag (max. 15,00 €)</label>
+          <input type="number" id="abr-post-fee" min="0" max="15" step="0.01" value="0" placeholder="0,00">
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:12px 14px;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:4px;">Ansetzbar</div>
+          <div style="font-size:15px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-post-display">0,00 €</div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:2px;">§ 12 Abs. 1 S. 2 Nr. 3 JVEG</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5: Zeitpositionen -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list-check"></i> Zeitpositionen</span>
+        <button id="add-position-btn" class="btn btn-primary btn-sm">
+          <i class="ti ti-plus"></i> Position hinzufügen
+        </button>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        Zeiten werden auf die nächste halbe Stunde aufgerundet. Beispiel: 70 Minuten → 1,5 Stunden.
+      </p>
+
+      <!-- Position rows -->
+      <div id="positions-list" style="display:flex;flex-direction:column;gap:0.75rem;margin-bottom:1rem;">
+        <!-- Injected by JS -->
+      </div>
+
+      <div style="background:var(--cream);border-radius:5px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:2px;">Gesamtzeit</div>
+          <div style="font-size:16px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-total-minutes">0 Minuten</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-light);font-weight:500;margin-bottom:2px;">Abrechenbare Stunden (aufgerundet)</div>
+          <div style="font-size:16px;font-weight:600;color:var(--navy);font-family:var(--sans);" id="abr-total-hours">0,0 Stunden</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 6: Steuer -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-receipt-tax"></i> Umsatzsteuer</span>
+      </div>
+      <div style="display:flex;gap:1rem;flex-wrap:wrap;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-mid);">
+          <input type="radio" name="tax-mode" id="tax-klein" value="klein" checked>
+          Kleinunternehmerregelung (§ 19 UStG) — keine USt.
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-mid);">
+          <input type="radio" name="tax-mode" id="tax-ust" value="ust">
+          Umsatzsteuerpflichtig — 19 % USt. ausweisen
+        </label>
+      </div>
+    </div>
+
+
+    <!-- Print options -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-printer"></i> Exportoptionen</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:1.5rem;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-mid);">
+          <input type="checkbox" id="print-header" checked>
+          Briefkopf (Praxisname, Adresse)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-mid);">
+          <input type="checkbox" id="print-footer" checked>
+          Fußzeile (Kontaktdaten, IBAN)
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text-mid);">
+          <input type="checkbox" id="print-signature" checked>
+          Unterschriftszeile (Name, Datum)
+        </label>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="card" style="border-color:rgba(184,154,94,0.3);">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-calculator"></i> Leistungsverzeichnis</span>
+        <button id="abr-print-btn" class="btn btn-primary btn-sm">
+          <i class="ti ti-device-floppy"></i> Speichern und Drucken
+        </button>
+      </div>
+
+      <div id="abr-summary" style="font-family:var(--sans);font-size:13px;">
+        <p style="color:var(--text-light);font-style:italic;">Bitte Fall, Version und Positionen auswählen.</p>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

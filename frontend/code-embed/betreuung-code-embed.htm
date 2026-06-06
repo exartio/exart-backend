@@ -1,0 +1,127 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Leitfaden</p>
+        <h1 class="page-title">Rechtliche Betreuung</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-info-circle"></i> Grundlagen</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;">
+        Die rechtliche Betreuung ist in den <strong>§§ 1814 ff. BGB</strong> (seit 1.1.2023 reformiert) geregelt. Sie wird vom Betreuungsgericht angeordnet, wenn eine volljährige Person aufgrund einer psychischen Krankheit oder einer körperlichen, geistigen oder seelischen Behinderung ihre Angelegenheiten nicht selbst besorgen kann. Betreuung ist stets <em>ultima ratio</em> — andere Hilfen haben Vorrang.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-scale"></i> Voraussetzungen § 1814 BGB</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:1rem;">
+        <div style="background:var(--cream);border-radius:5px;padding:14px 16px;border-left:3px solid var(--navy);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--navy);font-weight:600;margin-bottom:6px;">1. Medizinische Voraussetzung</div>
+          <p style="margin:0;font-size:13px;color:var(--text-mid);line-height:1.7;">Vorliegen einer <strong>psychischen Krankheit</strong> oder einer körperlichen, geistigen oder seelischen Behinderung. ICD-kodierte Diagnose erforderlich.</p>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:14px 16px;border-left:3px solid var(--navy);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--navy);font-weight:600;margin-bottom:6px;">2. Funktionelle Beeinträchtigung</div>
+          <p style="margin:0;font-size:13px;color:var(--text-mid);line-height:1.7;">Kausalzusammenhang zwischen Erkrankung und der Unfähigkeit, bestimmte Angelegenheiten selbst zu besorgen. Pauschale Aussagen ohne konkreten Bezug genügen nicht.</p>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:14px 16px;border-left:3px solid var(--navy);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--navy);font-weight:600;margin-bottom:6px;">3. Erforderlichkeit</div>
+          <p style="margin:0;font-size:13px;color:var(--text-mid);line-height:1.7;">Die Betreuung muss erforderlich sein — d.h. keine anderen geeigneten Hilfen (Familie, Sozialleistungen, Bevollmächtigte) stehen zur Verfügung oder sind ausreichend.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list"></i> Aufgabenkreise § 1815 BGB</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:1rem;">Die Betreuung wird nur für die Bereiche angeordnet, in denen sie tatsächlich erforderlich ist. Typische Aufgabenkreise:</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-heart" style="color:var(--gold);flex-shrink:0;"></i> Gesundheitssorge</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-home" style="color:var(--gold);flex-shrink:0;"></i> Aufenthaltsbestimmung</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-coin" style="color:var(--gold);flex-shrink:0;"></i> Vermögenssorge</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-mail" style="color:var(--gold);flex-shrink:0;"></i> Post- und Fernmeldeverkehr</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-building" style="color:var(--gold);flex-shrink:0;"></i> Behördenangelegenheiten</div>
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text-mid);padding:8px 12px;background:var(--cream);border-radius:4px;"><i class="ti ti-gavel" style="color:var(--gold);flex-shrink:0;"></i> Vertretung vor Gericht</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-clock"></i> Dauer und Überprüfung</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;">
+        Betreuungen werden grundsätzlich <strong>befristet</strong> angeordnet — in der Regel auf maximal 2 Jahre bei erstmaliger Anordnung, bei Verlängerung bis zu 7 Jahre. Das Gericht überprüft die Erforderlichkeit regelmäßig. Der Gutachter soll im Rahmen der Prognose die voraussichtliche Dauer des Betreuungsbedarfs beurteilen.
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-book"></i> Relevante Normen</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:100px;">§ 1814 BGB</span>
+          <span style="color:var(--text-mid);">Voraussetzungen der Betreuung</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:100px;">§ 1815 BGB</span>
+          <span style="color:var(--text-mid);">Aufgabenkreise der Betreuung</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:100px;">§ 1816 BGB</span>
+          <span style="color:var(--text-mid);">Auswahl des Betreuers</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:100px;">§ 286 FamFG</span>
+          <span style="color:var(--text-mid);">Sachverständigengutachten im Betreuungsverfahren</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:100px;">§ 294 FamFG</span>
+          <span style="color:var(--text-mid);">Anhörung der betroffenen Person</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

@@ -1,0 +1,116 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Organisation</p>
+        <h1 class="page-title" id="org-name-title">Mitglieder</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div id="demo-banner" class="demo-banner" hidden>
+      <i class="ti ti-info-circle"></i>
+      <span id="demo-reason"></span>
+    </div>
+
+    <!-- Members table card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-users"></i> Mitglieder der Organisation</span>
+        <span id="member-count" style="font-size:12px;color:var(--text-light);"></span>
+      </div>
+
+      <div id="members-loading" style="padding:2rem 0;text-align:center;color:var(--text-light);font-size:13px;">
+        Wird geladen…
+      </div>
+
+      <div id="members-table-wrap" style="display:none;overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="border-bottom:2px solid var(--navy);">
+              <th style="text-align:left;padding:8px 12px 8px 0;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);">Name</th>
+              <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);">E-Mail</th>
+              <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);">Rolle</th>
+              <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);">Registriert</th>
+              <th style="text-align:left;padding:8px 12px;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-light);">Verifizierung</th>
+            </tr>
+          </thead>
+          <tbody id="members-tbody"></tbody>
+        </table>
+      </div>
+
+      <div id="members-empty" style="display:none;padding:2rem 0;text-align:center;color:var(--text-light);font-size:13px;">
+        Keine Mitglieder gefunden.
+      </div>
+    </div>
+
+    <!-- Invite section -->
+    <div class="card" style="margin-top:1rem;">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-user-plus"></i> Mitglied hinzufügen</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.25rem;">
+        Geben Sie die E-Mail-Adresse eines bestehenden exart.io-Kontos ein. Der Nutzer erhält eine Einladungsmail und muss die Mitgliedschaft bestätigen.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr auto auto;gap:0.75rem;align-items:flex-end;">
+        <div class="field" style="margin:0;">
+          <label for="invite-email">E-Mail-Adresse</label>
+          <input type="email" id="invite-email" placeholder="kollege@praxis.de">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="invite-role">Rolle</label>
+          <select id="invite-role">
+            <option value="sachverstaendige">Sachverständige/r</option>
+            <option value="assistent">Assistent/in</option>
+          </select>
+        </div>
+        <button id="invite-btn" class="btn btn-primary btn-sm" style="margin-bottom:1px;">
+          <i class="ti ti-send"></i> Einladung senden
+        </button>
+      </div>
+      <div id="invite-status" class="msg" hidden style="margin-top:0.75rem;"></div>
+
+      <!-- Plan limits info -->
+      <div id="plan-limits-info" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-light);line-height:1.6;"></div>
+    </div>
+
+    <!-- Pending invitations -->
+    <div class="card" id="pending-card" style="margin-top:1rem;display:none;">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-mail-forward"></i> Ausstehende Einladungen</span>
+      </div>
+      <div id="pending-list"></div>
+    </div>
+
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/ki-transparenz">KI-Transparenzhinweis</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

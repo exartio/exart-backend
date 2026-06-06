@@ -1,0 +1,463 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- DEMO BANNER -->
+<div id="demo-banner" class="demo-banner" hidden>
+  <i class="ti ti-info-circle"></i>
+  <span id="demo-reason"></span>
+</div>
+
+<!-- PAGE SHELL -->
+<div class="page-shell">
+
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+
+    <!-- Page header -->
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Betreuungsgutachten § 1896 BGB</p>
+        <h1 class="page-title" id="case-title">Fall wird geladen…</h1>
+        <div class="page-divider"></div>
+      </div>
+      <a id="open-editor-btn" href="#" class="btn btn-gold" style="display:none;">
+        <i class="ti ti-edit"></i> Gutachten bearbeiten
+      </a>
+    </div>
+
+    <!-- Case meta bar -->
+    <div class="case-meta-bar">
+      <div class="case-meta-item">
+        <i class="ti ti-hash"></i>
+        <span id="case-ref">—</span>
+      </div>
+      <div class="case-meta-sep"></div>
+      <div class="case-meta-item">
+        <i class="ti ti-flag"></i>
+        <span id="case-status"><span class="badge badge-draft">Entwurf</span></span>
+      </div>
+    </div>
+
+    <!-- STEP 1: Gerichtsbeschluss -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="ti ti-gavel"></i>
+          Schritt 1 — Gerichtsbeschluss / Beauftragung
+        </span>
+        <span id="court-order-status-badge" class="badge badge-draft">Nicht hochgeladen</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        Laden Sie den Gerichtsbeschluss hoch. Das System extrahiert automatisch die Beweisfragen, die das Gericht an Sie als Sachverständigen stellt. Diese werden im generierten Gutachten unter einem eigenen Kapitel beantwortet.
+      </p>
+
+      <div class="upload-zone" id="court-order-drop-zone">
+        <div class="upload-zone-icon"><i class="ti ti-file-certificate"></i></div>
+        <p>Gerichtsbeschluss hierher ziehen oder auswählen<small>PDF, DOCX — max. 20 MB</small></p>
+        <label for="upload-court-order" class="btn btn-ghost btn-sm" style="cursor:pointer;">
+          <i class="ti ti-folder-open"></i> Datei auswählen
+        </label>
+        <input type="file" id="upload-court-order" accept=".pdf,.docx">
+      </div>
+      <button id="upload-court-order-btn" class="btn btn-primary btn-sm" style="display:none;margin-top:0.75rem;">
+        <i class="ti ti-upload"></i> Hochladen &amp; Beweisfragen extrahieren
+      </button>
+      <div id="court-order-upload-status" class="msg msg-info" hidden style="margin-top:0.75rem;">
+        <i class="ti ti-loader-2"></i><span></span>
+      </div>
+
+      <!-- Extracted Beweisfragen -->
+      <div id="beweisfragen-container" style="display:none;margin-top:1.25rem;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:500;margin-bottom:0.75rem;">Extrahierte Beweisfragen</div>
+        <ol id="beweisfragen-list" style="padding-left:1.25rem;margin:0;"></ol>
+      </div>
+      <!-- Import from other case -->
+      <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-light);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:500;margin-bottom:0.75rem;">
+          Oder Beweisfragen aus anderem Fall übernehmen
+        </div>
+        <div style="display:flex;gap:0.75rem;align-items:flex-end;">
+          <div class="field" style="margin:0;flex:1;">
+            <label for="import-case-select">Fall auswählen</label>
+            <select id="import-case-select">
+              <option value="">— Fall laden…</option>
+            </select>
+          </div>
+          <button id="import-beweisfragen-btn" class="btn btn-ghost btn-sm" style="flex-shrink:0;" disabled>
+            <i class="ti ti-copy"></i> Übernehmen
+          </button>
+        </div>
+        <div id="import-preview" style="display:none;margin-top:0.75rem;padding:0.75rem 1rem;background:var(--cream);border-radius:4px;border-left:3px solid var(--navy);">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);margin-bottom:0.5rem;">Vorschau</div>
+          <ol id="import-preview-list" style="margin:0;padding-left:1.25rem;font-size:12.5px;color:var(--text-mid);line-height:1.8;"></ol>
+        </div>
+        <div id="import-status" class="msg msg-info" hidden style="margin-top:0.75rem;"></div>
+      </div>
+    </div>
+
+
+    <!-- Deadline warning -->
+    <div id="deadline-warning" style="display:none;background:rgba(230,81,0,0.08);border:1px solid rgba(230,81,0,0.3);border-radius:5px;padding:0.875rem 1.25rem;margin-bottom:1rem;">
+      <div style="display:flex;align-items:center;gap:0.75rem;">
+        <i class="ti ti-alarm" style="color:#e65100;font-size:18px;flex-shrink:0;"></i>
+        <span id="deadline-warning-text" style="font-size:13px;color:#e65100;font-weight:500;"></span>
+      </div>
+    </div>
+
+    <!-- Fallangaben card -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-clipboard-list"></i> Fallangaben</span>
+        <button id="save-case-meta-btn" class="btn btn-primary btn-sm">
+          <i class="ti ti-device-floppy"></i> Speichern
+        </button>
+      </div>
+      <div id="court-autofill-info" style="display:none;background:rgba(46,125,50,0.08);border:1px solid rgba(46,125,50,0.25);border-radius:5px;padding:0.75rem 1rem;font-size:12px;color:#2e7d32;margin-bottom:1rem;align-items:center;gap:8px;">
+        <i class="ti ti-wand" style="font-size:14px;flex-shrink:0;"></i>
+        Felder wurden automatisch aus dem Gerichtsbeschluss befüllt. Bitte prüfen und ggf. korrigieren.
+      </div>
+      <div id="case-meta-save-status" class="msg" hidden style="margin-bottom:0.75rem;"></div>
+
+      <!-- Gericht & Auftrag -->
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;margin-bottom:0.75rem;">Gericht &amp; Auftrag</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;margin-bottom:1.25rem;">
+        <div class="field" style="margin:0;">
+          <label for="case-aktenzeichen">Aktenzeichen</label>
+          <input type="text" id="case-aktenzeichen" placeholder="z. B. 17 XVII B 234/25">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-gericht">Gericht</label>
+          <input type="text" id="case-gericht" placeholder="z. B. Amtsgericht Musterstadt">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-richter">Richter/in</label>
+          <input type="text" id="case-richter" placeholder="z. B. Dr. Müller">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-beauftragungsdatum">Beschlussdatum</label>
+          <input type="date" id="case-beauftragungsdatum">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-abgabefrist">Abgabefrist</label>
+          <input type="date" id="case-abgabefrist">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-honorar">Erwartetes Honorar (€)</label>
+          <input type="number" id="case-honorar" placeholder="z. B. 800" min="0" step="0.01">
+        </div>
+      </div>
+
+      <!-- Betroffene/r -->
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;margin-bottom:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-light);">Betroffene/r</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="case-patient-ref">Name</label>
+          <input type="text" id="case-patient-ref" placeholder="z. B. Hans Müller">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-betroffener-dob">Geburtsdatum</label>
+          <input type="date" id="case-betroffener-dob">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="case-betroffener-adresse">Adresse</label>
+          <input type="text" id="case-betroffener-adresse" placeholder="z. B. Musterstraße 12, 12345 Musterstadt">
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 2: Vorgutachten selection -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="ti ti-library"></i>
+          Schritt 2 — Vorgutachten auswählen
+        </span>
+        <span class="badge badge-gold">RAG-Referenzpool</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.6;">
+        Wählen Sie, welche Ihrer Vorgutachten als Referenz für diesen Fall verwendet werden sollen. Vorgutachten können Sie in der <a href="/dashboard" style="color:var(--navy);">Fallübersicht</a> hochladen.
+      </p>
+
+      <div style="display:flex;gap:0.75rem;margin-bottom:1.25rem;flex-wrap:wrap;">
+        <button id="stmt-mode-all" class="btn btn-ghost btn-sm stmt-mode-btn">
+          <i class="ti ti-check-all"></i> Alle verwenden
+        </button>
+        <button id="stmt-mode-select" class="btn btn-ghost btn-sm stmt-mode-btn">
+          <i class="ti ti-list-check"></i> Auswahl treffen
+        </button>
+        <button id="stmt-mode-none" class="btn btn-ghost btn-sm stmt-mode-btn">
+          <i class="ti ti-x"></i> Keine verwenden
+        </button>
+      </div>
+
+      <ul class="doc-list" id="stmt-select-list" style="display:none;"></ul>
+      <div id="stmt-selection-status" class="msg msg-info" hidden style="margin-top:0.75rem;">
+        <i class="ti ti-loader-2"></i><span></span>
+      </div>
+    </div>
+
+    <!-- STEP 3: Case documents -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="ti ti-folder-open"></i>
+          Schritt 3 — Falldokumentation hochladen
+        </span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        Laden Sie die Unterlagen dieses Falles hoch: Arztbriefe, Entlassungsberichte, Pflegedokumentation, eingescannte Befunde.
+      </p>
+      <div style="display:grid;grid-template-columns:1fr auto;gap:0.75rem;align-items:flex-end;margin-bottom:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="upload-doc-type">Dokumenttyp</label>
+          <select id="upload-doc-type">
+            <option value="other">Arztbrief / Entlassungsbericht</option>
+            <option value="lab_report">Befundbericht</option>
+            <option value="other">Pflegedokumentation</option>
+            <option value="medical_scan">Eingescanntes Dokument</option>
+            <option value="court_order">Gerichtlicher Beschluss</option>
+            <option value="other">Sonstige Unterlage</option>
+          </select>
+        </div>
+        <div>
+          <label for="upload-case-doc" class="btn btn-ghost btn-sm" style="cursor:pointer;display:inline-flex;">
+            <i class="ti ti-folder-open"></i> Dateien auswählen
+          </label>
+          <input type="file" id="upload-case-doc" multiple accept=".pdf,.docx,.jpg,.jpeg,.png,.tiff">
+        </div>
+      </div>
+      <button id="upload-doc-btn" class="btn btn-primary btn-sm" style="display:none;">
+        <i class="ti ti-upload"></i> Hochladen
+      </button>
+      <div id="upload-doc-status" class="msg msg-info" hidden style="margin-top:0.75rem;">
+        <i class="ti ti-loader-2"></i><span></span>
+      </div>
+      <ul class="doc-list" id="case-docs-list" style="margin-top:1rem;"></ul>
+    </div>
+
+    <!-- STEP 4: Template selection -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="ti ti-template"></i>
+          Schritt 4 — Gutachten-Vorlage auswählen
+        </span>
+        <span style="font-size:11.5px;color:var(--text-light);">Optional</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1rem;line-height:1.6;">
+        Wählen Sie eine Vorlage aus, die Kapitelstruktur, Einleitungstext und Schlussformel vorgibt. Vorlagen verwalten Sie unter <a href="/dashboard-settings" style="color:var(--navy);">Einstellungen → Vorlagen</a>.
+      </p>
+      <div class="field" style="margin:0;">
+        <label for="template-select">Vorlage</label>
+        <select id="template-select">
+          <option value="">— Keine Vorlage (Standard-Struktur) —</option>
+        </select>
+      </div>
+      <div id="tpl-preview" style="display:none;margin-top:1rem;padding:0.75rem 1rem;background:var(--cream);border-radius:4px;border-left:3px solid var(--gold);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);margin-bottom:0.5rem;">Kapitel dieser Vorlage</div>
+        <ol id="tpl-preview-chapters" style="margin:0;padding-left:1.25rem;font-size:13px;color:var(--text-mid);line-height:1.8;"></ol>
+      </div>
+    </div>
+
+    <!-- STEP 5: Own findings -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">
+          <i class="ti ti-stethoscope"></i>
+          Schritt 5 — Eigene Befunde und Beurteilung
+        </span>
+        <span style="font-size:11.5px;color:var(--text-light);">Optional</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);margin-bottom:1.25rem;line-height:1.6;">
+        Erfassen Sie Ihre persönlich erhobenen Befunde. Diese werden mit höchster Priorität in das Gutachten übernommen und klar von Fremdunterlagen getrennt. Sie können Text direkt eingeben oder eine Datei hochladen.
+      </p>
+
+      <!-- Input area -->
+      <div style="display:grid;grid-template-columns:1fr;gap:0.75rem;margin-bottom:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="findings-type">Befundtyp</label>
+          <select id="findings-type">
+            <option value="exploration">Exploration</option>
+            <option value="untersuchung">Untersuchung</option>
+            <option value="amdp">AMDP-Befund</option>
+            <option value="anamnese">Fremd-/Anamnese</option>
+            <option value="sonstig">Sonstiger Befund</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Tab: Text or File -->
+      <div style="display:flex;gap:0;margin-bottom:1rem;border:1px solid var(--border-mid);border-radius:4px;overflow:hidden;width:fit-content;">
+        <button id="finding-tab-text" class="btn btn-ghost btn-sm" style="border-radius:0;border-right:1px solid var(--border-mid);background:var(--navy);color:#fff;">
+          <i class="ti ti-keyboard"></i> Texteingabe
+        </button>
+        <button id="finding-tab-file" class="btn btn-ghost btn-sm" style="border-radius:0;">
+          <i class="ti ti-upload"></i> Datei hochladen
+        </button>
+      </div>
+
+      <!-- Text input panel -->
+      <div id="finding-text-panel">
+        <div class="field" style="margin:0 0 0.75rem;">
+          <textarea id="findings-input" rows="5" placeholder="z. B.: Patient wurde am 15.03.2026 persönlich untersucht. Psychischer Befund: wacher, allseits orientierter Patient…"></textarea>
+        </div>
+        <button id="add-finding-text-btn" class="btn btn-primary btn-sm">
+          <i class="ti ti-plus"></i> Befund speichern
+        </button>
+        <div id="finding-text-status" class="msg msg-info" hidden style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- File upload panel -->
+      <div id="finding-file-panel" style="display:none;">
+        <div class="upload-zone" style="margin-bottom:0.75rem;">
+          <div class="upload-zone-icon"><i class="ti ti-file-upload"></i></div>
+          <p>Befunddatei hierher ziehen oder auswählen<small>PDF, DOCX — max. 20 MB</small></p>
+          <label for="finding-file-input" class="btn btn-ghost btn-sm" style="cursor:pointer;">
+            <i class="ti ti-folder-open"></i> Datei auswählen
+          </label>
+          <input type="file" id="finding-file-input" accept=".pdf,.docx">
+        </div>
+        <button id="add-finding-file-btn" class="btn btn-primary btn-sm" style="display:none;">
+          <i class="ti ti-upload"></i> Befund hochladen
+        </button>
+        <div id="finding-file-status" class="msg msg-info" hidden style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- Saved findings list -->
+      <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid var(--border-light);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:500;margin-bottom:0.75rem;">Gespeicherte Befunde</div>
+        <div id="own-findings-loading" style="font-size:13px;color:var(--text-light);">Wird geladen…</div>
+        <ul id="own-findings-list" style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0.5rem;"></ul>
+      </div>
+    </div>
+
+    <!-- STEP 5: Generate -->
+    <div class="generate-panel">
+      <div class="generate-panel-text">
+        <h3>Schritt 6 — Betreuungsgutachten generieren</h3>
+        <p>exart.io erstellt auf Basis Ihrer Unterlagen, Referenzgutachten, Vorlage und der Beweisfragen des Gerichts einen vollständigen Entwurf — normgerecht nach § 1896 BGB, in Ihrer Sprache.</p>
+
+      <!-- Gutachten type selector -->
+      <div class="field" style="margin-bottom:1.25rem;">
+        <label for="gutachten-type" style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;">Art des Gutachtens</label>
+        <select id="gutachten-type" style="margin-top:6px;">
+          <option value="betreuung">Rechtliche Betreuung (§§ 1814 ff. BGB)</option>
+          <option value="allgemein">Allgemeines Sachverständigengutachten</option>
+          <option value="unterbringung">Unterbringung nach BGB (§ 1831 BGB)</option>
+          <option value="zwangsmassnahmen">Zwangsmaßnahmen nach BGB (§ 1832 BGB)</option>
+        </select>
+      </div>
+
+        <div style="font-family:var(--sans);font-size:12px;color:var(--text-light);margin-bottom:0.75rem;" id="generation-counter"></div>
+        <div id="generate-quota-status" class="msg" hidden style="margin-bottom:0.75rem;"></div>
+        <div id="generate-status" class="generate-status" style="display:none;">
+          <i class="ti ti-loader-2"></i>
+          <span></span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;align-items:flex-end;">
+        <button id="generate-btn" class="btn btn-gold btn-lg">
+          <i class="ti ti-sparkles"></i> Gutachten generieren
+        </button>
+        <a id="open-editor-btn-2" href="#" class="btn btn-ghost btn-sm" style="display:none;color:#fff;border-color:rgba(255,255,255,0.25);">
+          <i class="ti ti-edit"></i> Letzten Entwurf öffnen
+        </a>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- LEGAL DISCLAIMER GENERATION MODAL -->
+<div id="generate-legal-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.55);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:2rem;max-width:520px;width:92%;box-shadow:0 20px 60px rgba(26,38,64,0.25);max-height:90vh;overflow-y:auto;">
+
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(26,38,64,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-scale" style="color:var(--navy);font-size:18px;"></i>
+      </div>
+      <div>
+        <h3 style="margin:0 0 2px;font-size:15px;font-weight:600;color:var(--navy);">Rechtlicher Hinweis vor der Generierung</h3>
+        <p style="margin:0;font-size:11px;color:var(--text-light);">Bitte lesen Sie sorgfältig und bestätigen Sie.</p>
+      </div>
+    </div>
+
+    <div style="background:var(--cream);border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;border-left:3px solid var(--navy);">
+      <p style="margin:0 0 1rem;font-size:13px;color:var(--navy);font-weight:500;line-height:1.5;">
+        Hinweis gemäß § 404 ZPO und ärztlichem Berufsrecht
+      </p>
+      <p style="margin:0 0 0.75rem;font-size:13px;color:var(--text-mid);line-height:1.7;">
+        Das durch <strong>exart.io</strong> generierte Gutachten ist ein automatisierter Entwurf auf Basis der von mir bereitgestellten Unterlagen und Befunde. Es dient als Arbeitshilfe im Sinne eines technischen Hilfsmittels und ersetzt nicht meine fachärztliche Beurteilung.
+      </p>
+      <p style="margin:0 0 0.75rem;font-size:13px;color:var(--text-mid);line-height:1.7;">
+        Ich bin mir bewusst, dass ich als bestellter Sachverständiger gemäß <strong>§ 404 ZPO</strong> persönlich für den Inhalt des Gutachtens hafte. Der generierte Entwurf muss von mir eigenverantwortlich geprüft, fachlich bewertet und gegebenenfalls überarbeitet werden, bevor er dem Gericht übermittelt wird.
+      </p>
+      <p style="margin:0;font-size:13px;color:var(--text-mid);line-height:1.7;">
+        Das fertige Gutachten darf nur von mir als approbiertem Arzt eigenhändig unterschrieben werden.
+      </p>
+    </div>
+
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:1.5rem;padding:1rem;border:1px solid var(--border-mid);border-radius:6px;cursor:pointer;" id="generate-legal-checkbox-row">
+      <input type="checkbox" id="generate-legal-checkbox" style="margin-top:2px;flex-shrink:0;cursor:pointer;width:16px;height:16px;accent-color:var(--navy);">
+      <label for="generate-legal-checkbox" style="font-size:13px;color:var(--navy);line-height:1.6;cursor:pointer;font-weight:500;">
+        Ich habe den Hinweis gelesen und bestätige, dass ich als approbierter Arzt die alleinige fachliche und rechtliche Verantwortung für dieses Gutachten trage.
+      </label>
+    </div>
+
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="generate-legal-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="generate-legal-confirm" class="btn btn-primary btn-sm" disabled>
+        <i class="ti ti-sparkles"></i> Gutachten generieren
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<!-- CONFIRM MODAL -->
+<div id="confirm-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.45);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:1.75rem 2rem;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(26,38,64,0.2);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+      <div id="confirm-modal-icon" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(184,64,64,0.1);">
+        <i id="confirm-modal-icon-i" class="ti ti-alert-triangle" style="color:var(--error);font-size:16px;"></i>
+      </div>
+      <h3 id="confirm-modal-title" style="margin:0;font-size:15px;font-weight:600;color:var(--navy);line-height:1.3;"></h3>
+    </div>
+    <p id="confirm-modal-text" style="font-size:13px;color:var(--text-mid);line-height:1.6;margin:0 0 1.5rem;"></p>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="confirm-modal-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="confirm-modal-ok" class="btn btn-danger btn-sm"></button>
+    </div>
+  </div>
+</div>
+
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

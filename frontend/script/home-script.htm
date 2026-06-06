@@ -1,0 +1,76 @@
+<script>
+// ── Billing toggle ────────────────────────────────────────────
+let billingYearly = false
+function toggleBilling() {
+  billingYearly = !billingYearly
+  const btnMonthly = document.getElementById('toggle-label-monthly')
+  const btnYearly  = document.getElementById('toggle-label-yearly')
+  if (billingYearly) {
+    btnMonthly.style.background = '#fff'
+    btnMonthly.style.color      = 'var(--text-mid)'
+    btnMonthly.style.fontWeight = '400'
+    btnYearly.style.background  = 'var(--navy)'
+    btnYearly.style.color       = '#fff'
+    btnYearly.style.fontWeight  = '500'
+    document.getElementById('price-solo').textContent  = '1.490\u00a0\u20ac'
+    document.getElementById('period-solo').textContent = '/ Jahr'
+    document.getElementById('note-solo').textContent   = '124,17\u00a0\u20ac / Monat \u2014 2 Monate gratis'
+    document.getElementById('btn-solo').setAttribute('data-plan', 'solo_yearly')
+    document.getElementById('price-expert').textContent  = '3.490\u00a0\u20ac'
+    document.getElementById('period-expert').textContent = '/ Jahr'
+    document.getElementById('note-expert').textContent   = '290,83\u00a0\u20ac / Monat \u2014 2 Monate gratis'
+    document.getElementById('btn-expert').setAttribute('data-plan', 'expert_yearly')
+  } else {
+    btnMonthly.style.background = 'var(--navy)'
+    btnMonthly.style.color      = '#fff'
+    btnMonthly.style.fontWeight = '500'
+    btnYearly.style.background  = '#fff'
+    btnYearly.style.color       = 'var(--text-mid)'
+    btnYearly.style.fontWeight  = '400'
+    document.getElementById('price-solo').textContent  = '149\u00a0\u20ac'
+    document.getElementById('period-solo').textContent = '/ Monat'
+    document.getElementById('note-solo').textContent   = 'oder 1.490\u00a0\u20ac / Jahr (2 Monate gratis)'
+    document.getElementById('btn-solo').setAttribute('data-plan', 'solo')
+    document.getElementById('price-expert').textContent  = '349\u00a0\u20ac'
+    document.getElementById('period-expert').textContent = '/ Monat'
+    document.getElementById('note-expert').textContent   = 'oder 3.490\u00a0\u20ac / Jahr (2 Monate gratis)'
+    document.getElementById('btn-expert').setAttribute('data-plan', 'expert')
+  }
+}
+// ── Checkout ──────────────────────────────────────────────────
+async function startCheckout(defaultPlan, btn) {
+  const plan = btn.getAttribute('data-plan') || defaultPlan
+  const errorEl = document.getElementById('pricing-error')
+  errorEl.style.display = 'none'
+  let session = null
+  try {
+    const result = await _supabase.auth.getSession()
+    session = result.data.session
+  } catch(e) {}
+  if (!session) {
+    window.location.href = '/login'
+    return
+  }
+  btn.disabled = true
+  const originalText = btn.textContent
+  btn.textContent = 'Weiterleitung...'
+  try {
+    const res = await fetch(`${EXART_CONFIG.apiUrl}/api/stripe/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session.access_token}`
+      },
+      body: JSON.stringify({ plan })
+    })
+    const data = await res.json()
+    if (!res.ok) throw new Error(data.error || 'Checkout fehlgeschlagen')
+    window.location.href = data.url
+  } catch(err) {
+    errorEl.style.display = 'flex'
+    errorEl.querySelector('span').textContent = err.message
+    btn.disabled = false
+    btn.textContent = originalText
+  }
+}
+</script>

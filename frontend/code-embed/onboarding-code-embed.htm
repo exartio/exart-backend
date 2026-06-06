@@ -1,0 +1,67 @@
+
+<div class="onboarding-wrap">
+
+  <a href="/" class="onboarding-logo">
+    <span class="onboarding-logo-mark">exart</span>
+    <span class="onboarding-logo-sub">.io</span>
+  </a>
+
+  <!-- Step progress -->
+  <div class="onboarding-progress">
+    <div class="onboarding-step-dot done"></div>
+    <div class="onboarding-step-dot active"></div>
+    <div class="onboarding-step-dot"></div>
+  </div>
+
+  <div class="onboarding-card">
+
+    <div class="onboarding-icon">
+      <i class="ti ti-building-hospital"></i>
+    </div>
+
+    <p id="user-greeting" style="font-size:13px; color:var(--text-light); margin-bottom:0.5rem;"></p>
+    <h1>Praxis einrichten</h1>
+    <p class="onboarding-sub">
+      Erstellen Sie Ihren Praxis-Workspace. Dieser Name erscheint auf Ihren Gutachten und ist für Ihr Team sichtbar.
+    </p>
+
+    <div id="onboarding-error" class="msg msg-error" hidden>
+      <i class="ti ti-alert-circle"></i>
+      <span></span>
+    </div>
+
+    <div class="field">
+      <label for="org-name-input">Name der Praxis / Institution</label>
+      <input type="text" id="org-name-input" placeholder="z. B. Psychiatrische Praxis Dr. Muster">
+    </div>
+
+    <div class="field">
+      <label for="org-slug-input">Kürzel (wird automatisch generiert)</label>
+      <input type="text" id="org-slug-input" placeholder="psychiatrische-praxis-dr-muster">
+      <p class="field-hint">Wird intern als eindeutiger Bezeichner verwendet. Nur Kleinbuchstaben und Bindestriche.</p>
+    </div>
+
+    <div class="onboarding-divider"></div>
+
+    <button id="create-org-btn" class="btn btn-primary btn-lg" style="width:100%;">
+      <i class="ti ti-arrow-right"></i> Workspace erstellen
+    </button>
+
+  </div>
+
+</div>
+
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerkl&auml;rung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

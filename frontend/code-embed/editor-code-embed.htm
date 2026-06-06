@@ -1,0 +1,269 @@
+<style>
+/* ── Format toolbar ─────────────────────────────────────────── */
+#format-toolbar {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 4px 8px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.fmt-btn {
+  background: none;
+  border: none;
+  padding: 5px 7px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text-mid);
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background 0.1s;
+}
+.fmt-btn:hover  { background: rgba(26,38,64,0.08); color: var(--navy); }
+.fmt-btn.active { background: rgba(26,38,64,0.12); color: var(--navy); }
+.fmt-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 3px;
+  flex-shrink: 0;
+}
+/* Hide Quill built-in Snow toolbar */
+.ql-toolbar.ql-snow { display: none !important; }
+.ql-container.ql-snow { border-top: 1px solid var(--border-light) !important; }
+</style>
+
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a id="back-to-case-btn" href="/dashboard-cases"><i class="ti ti-arrow-left"></i> Zurück zum Fall</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- EDITOR SHELL -->
+<div class="editor-shell">
+
+  <!-- TOP TOOLBAR -->
+  <div class="editor-toolbar">
+    <div class="editor-toolbar-title">
+      <span class="case-name" id="editor-case-title">Gutachten wird geladen…</span>
+      <span class="case-ref" id="editor-case-ref"></span>
+    </div>
+
+    <!-- Version dropdown -->
+    <div style="position:relative;flex-shrink:0;" id="version-dropdown-wrap">
+      <button id="version-dropdown-btn" class="btn btn-ghost btn-sm" style="gap:6px;">
+        <i class="ti ti-history"></i>
+        <span id="version-label">Version —</span>
+        <i class="ti ti-chevron-down" style="font-size:11px;"></i>
+      </button>
+      <div id="version-dropdown-menu" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1px solid var(--border-mid);border-radius:6px;box-shadow:0 8px 24px rgba(26,38,64,0.12);min-width:220px;z-index:100;overflow:hidden;">
+        <div id="version-dropdown-list"></div>
+      </div>
+    </div>
+
+    <!-- Completion badge -->
+    <span id="completion-badge" style="display:none;" class="badge badge-active">
+      <i class="ti ti-circle-check"></i> Abgeschlossen
+    </span>
+
+    <div class="editor-toolbar-actions">
+      <!-- Auto-save status -->
+      <div id="save-status" class="save-status">
+      </div>
+      <button id="save-btn" class="btn btn-ghost btn-sm">
+        <i class="ti ti-device-floppy"></i> Speichern
+      </button>
+      <div style="width:0.5px;height:18px;background:var(--border);"></div>
+      <!-- TOC toggle -->
+      <button id="toc-toggle-btn" class="btn btn-ghost btn-sm" title="Inhaltsverzeichnis ein-/ausblenden">
+        <i class="ti ti-list"></i>
+      </button>
+      <!-- Print preview -->
+      <button id="print-preview-btn" class="btn btn-ghost btn-sm" title="Druckvorschau">
+        <i class="ti ti-printer"></i>
+      </button>
+      <div style="width:0.5px;height:18px;background:var(--border);"></div>
+      <button id="export-docx-btn" class="btn btn-ghost btn-sm">
+        <i class="ti ti-file-type-docx"></i> DOCX
+      </button>
+      <button id="export-pdf-btn" class="btn btn-primary btn-sm" disabled style="opacity:0.4;cursor:not-allowed;" title="PDF-Export vorübergehend nicht verfügbar">
+        <i class="ti ti-file-type-pdf"></i> PDF
+      </button>
+      <div style="width:0.5px;height:18px;background:var(--border);"></div>
+      <button id="complete-btn" class="btn btn-gold btn-sm" title="Gutachten fertigstellen und sperren">
+        <i class="ti ti-lock-check"></i> Fertigstellen
+      </button>
+    </div>
+  </div>
+
+  <!-- EXPORT STATUS -->
+  <div id="export-status" class="msg msg-info" hidden style="margin:0;border-radius:0;border-left:none;border-right:none;">
+    <i class="ti ti-loader-2"></i><span></span>
+  </div>
+
+  <!-- LOCKED BANNER -->
+  <div id="locked-banner" style="display:none;background:rgba(184,154,94,0.1);border-bottom:1px solid rgba(184,154,94,0.3);padding:8px 1.5rem;align-items:center;gap:10px;">
+    <i class="ti ti-lock" style="color:var(--gold);font-size:14px;"></i>
+    <span style="font-size:12.5px;color:var(--navy);font-weight:500;">Dieses Gutachten wurde als fertiggestellt markiert und ist schreibgeschützt.</span>
+    <button id="unlock-btn" class="btn btn-ghost btn-sm" style="margin-left:auto;font-size:11px;">
+      <i class="ti ti-lock-open"></i> Sperre aufheben
+    </button>
+  </div>
+
+  <!-- SIDE-BY-SIDE PANELS -->
+  <div class="editor-panels">
+
+    <!-- LEFT: Source documents -->
+    <div class="editor-panel" id="source-panel">
+      <div class="editor-panel-header">
+        <i class="ti ti-files"></i> Quelldokumente
+      </div>
+      <div class="source-panel-body">
+        <div id="source-list">
+          <p style="font-size:13px;color:var(--text-light);text-align:center;padding:2rem 0;">
+            Quelldokumente werden geladen…
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Quill editor -->
+    <div class="editor-panel" id="output-panel" style="display:flex;flex-direction:column;overflow:hidden;">
+      <div class="editor-panel-header right" style="flex-shrink:0;">
+        <i class="ti ti-edit"></i> Gutachtenentwurf
+      </div>
+
+      <!-- Format toolbar -->
+      <div id="format-toolbar">
+        <button class="fmt-btn" data-action="bold" title="Fett (Ctrl+B)"><i class="ti ti-bold"></i></button>
+        <button class="fmt-btn" data-action="italic" title="Kursiv (Ctrl+I)"><i class="ti ti-italic"></i></button>
+        <button class="fmt-btn" data-action="underline" title="Unterstrichen (Ctrl+U)"><i class="ti ti-underline"></i></button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-action="header-1" title="Überschrift 1"><i class="ti ti-h-1"></i></button>
+        <button class="fmt-btn" data-action="header-2" title="Überschrift 2"><i class="ti ti-h-2"></i></button>
+        <button class="fmt-btn" data-action="header-3" title="Überschrift 3"><i class="ti ti-h-3"></i></button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-action="list-bullet" title="Aufzählung"><i class="ti ti-list"></i></button>
+        <button class="fmt-btn" data-action="list-ordered" title="Nummerierte Liste"><i class="ti ti-list-numbers"></i></button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-action="indent-plus" title="Einzug vergrößern"><i class="ti ti-indent-increase"></i></button>
+        <button class="fmt-btn" data-action="indent-minus" title="Einzug verkleinern"><i class="ti ti-indent-decrease"></i></button>
+        <div class="fmt-sep"></div>
+        <button class="fmt-btn" data-action="clean" title="Formatierung entfernen"><i class="ti ti-clear-formatting"></i></button>
+      </div>
+
+      <div class="output-panel-body" style="position:relative;flex:1;overflow:hidden;display:flex;flex-direction:column;">
+        <div id="quill-editor" style="flex:1;overflow-y:auto;"></div>
+        <!-- Upgrade prompt overlay -->
+        <div id="upgrade-prompt" style="display:none;position:absolute;bottom:0;left:0;right:0;background:linear-gradient(to bottom, transparent, rgba(247,244,239,0.97) 30%);padding:3rem 2rem 2rem;flex-direction:column;align-items:center;text-align:center;gap:1rem;z-index:10;">
+          <div class="upgrade-prompt-title" style="font-family:var(--heading-serif,'Georgia',serif);font-size:18px;color:var(--navy,#1a2640);font-weight:500;"></div>
+          <div class="upgrade-prompt-text" style="font-size:13px;color:var(--text-mid,#4a5568);max-width:400px;line-height:1.6;"></div>
+          <div style="display:flex;gap:0.75rem;flex-wrap:wrap;justify-content:center;">
+            <button id="upgrade-prompt-btn" class="btn btn-gold"><i class="ti ti-arrow-up-circle"></i> Abonnement abschließen</button>
+            <button id="upgrade-portal-btn" class="btn btn-ghost btn-sm"><i class="ti ti-external-link"></i> Abonnement verwalten</button>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+
+    <!-- TOC panel -->
+    <div id="toc-panel" class="hidden">
+      <div class="toc-header">
+        <button id="toc-close-btn" style="background:none;border:none;cursor:pointer;color:var(--text-light);font-size:14px;padding:0;"><i class="ti ti-x"></i></button>
+      </div>
+      <div id="toc-list"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- PRINT PREVIEW OVERLAY -->
+<div id="print-preview-overlay">
+  <div id="print-preview-bar">
+    <span style="font-family:var(--serif);font-size:14px;font-weight:600;color:#fff;">Druckvorschau</span>
+    <div style="margin-left:auto;display:flex;gap:0.75rem;">
+      <button onclick="window.print()" class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.3);">
+        <i class="ti ti-printer"></i> Drucken / PDF speichern
+      </button>
+      <button id="print-preview-close" class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,0.3);">
+        <i class="ti ti-x"></i> Schließen
+      </button>
+    </div>
+  </div>
+  <div id="print-preview-content"></div>
+</div>
+
+<!-- COMPLETE MODAL -->
+<div id="complete-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:2rem;max-width:440px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(184,154,94,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-lock-check" style="color:var(--gold);font-size:18px;"></i>
+      </div>
+      <h3 style="margin:0;font-size:16px;font-weight:600;color:var(--navy);">Gutachten fertigstellen?</h3>
+    </div>
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.5rem;">
+      Das Gutachten wird als <strong>abgeschlossen</strong> markiert und gesperrt. Es kann weiterhin exportiert werden, aber nicht mehr bearbeitet werden.<br><br>
+      Die Sperre kann jederzeit aufgehoben werden.
+    </p>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="complete-modal-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="complete-modal-confirm" class="btn btn-gold btn-sm">
+        <i class="ti ti-lock-check"></i> Fertigstellen &amp; sperren
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- LEGAL DISCLAIMER EXPORT MODAL -->
+<div id="export-legal-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.55);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:2rem;max-width:520px;width:92%;box-shadow:0 20px 60px rgba(26,38,64,0.25);max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1.25rem;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(26,38,64,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-scale" style="color:var(--navy);font-size:18px;"></i>
+      </div>
+      <div>
+        <h3 style="margin:0 0 2px;font-size:15px;font-weight:600;color:var(--navy);">Rechtlicher Hinweis vor dem Export</h3>
+        <p style="margin:0;font-size:11px;color:var(--text-light);">Bitte lesen Sie sorgfältig und bestätigen Sie.</p>
+      </div>
+    </div>
+    <div style="background:var(--cream);border-radius:6px;padding:1.25rem 1.5rem;margin-bottom:1.5rem;border-left:3px solid var(--navy);">
+      <p style="margin:0 0 1rem;font-size:13px;color:var(--navy);font-weight:500;line-height:1.5;">Hinweis gemäß § 404 ZPO und ärztlichem Berufsrecht</p>
+      <p style="margin:0 0 0.75rem;font-size:13px;color:var(--text-mid);line-height:1.7;">Ich bestätige, dass ich dieses Gutachten mit Unterstützung von <strong>exart.io</strong> als automatisiertem Hilfssystem im Sinne eines technischen Hilfsmittels erstellt habe.</p>
+      <p style="margin:0 0 0.75rem;font-size:13px;color:var(--text-mid);line-height:1.7;">Ich bin mir bewusst, dass ich als bestellter Sachverständiger gemäß § 404 ZPO persönlich für den Inhalt dieses Gutachtens hafte.</p>
+      <p style="margin:0;font-size:13px;color:var(--text-mid);line-height:1.7;">Das exportierte Dokument darf nur von mir als approbiertem Arzt eigenhändig unterschrieben und dem Gericht übermittelt werden.</p>
+    </div>
+    <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:1.5rem;padding:1rem;border:1px solid var(--border-mid);border-radius:6px;cursor:pointer;" id="export-legal-checkbox-row">
+      <input type="checkbox" id="export-legal-checkbox" style="margin-top:2px;flex-shrink:0;cursor:pointer;width:16px;height:16px;accent-color:var(--navy);">
+      <label for="export-legal-checkbox" style="font-size:13px;color:var(--navy);line-height:1.6;cursor:pointer;font-weight:500;">
+        Ich habe den Hinweis gelesen und bestätige, dass ich als approbierter Arzt die alleinige fachliche und rechtliche Verantwortung für dieses Gutachten trage.
+      </label>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="export-legal-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="export-legal-confirm" class="btn btn-primary btn-sm" disabled>
+        <i class="ti ti-download"></i> <span id="export-legal-format">Exportieren</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>

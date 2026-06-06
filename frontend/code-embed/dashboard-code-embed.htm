@@ -1,0 +1,186 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard" class="active"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- DEMO BANNER -->
+<div id="demo-banner" class="demo-banner" hidden>
+  <i class="ti ti-info-circle"></i>
+  <span id="demo-reason"></span>
+</div>
+
+<!-- PAGE SHELL -->
+<div class="page-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Betreuungsgutachten</p>
+        <h1 class="page-title">Arbeitsplatz</h1>
+        <div class="page-divider"></div>
+      </div>
+      <button id="new-case-btn" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Neuer Fall
+      </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="dashboard-stats">
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-files"></i></div>
+        <div>
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Fälle gesamt</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-pencil"></i></div>
+        <div>
+          <div class="stat-value" id="stat-active">—</div>
+          <div class="stat-label">In Bearbeitung</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
+        <div>
+          <div class="stat-value" id="stat-done">—</div>
+          <div class="stat-label">Abgeschlossen</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- New case form (hidden by default) -->
+    <div id="new-case-form" class="card" style="display:none;">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-folder-plus"></i> Neuen Fall anlegen</span>
+        <button id="cancel-new-case-btn" class="btn btn-ghost btn-sm">
+          <i class="ti ti-x"></i> Abbrechen
+        </button>
+      </div>
+      <div id="new-case-error" class="msg msg-error" hidden>
+        <i class="ti ti-alert-circle"></i><span></span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="field">
+          <label for="case-title-input">Fallbezeichnung</label>
+          <input type="text" id="case-title-input" placeholder="z. B. Betreuungssache M. Hoffmann">
+        </div>
+        <div class="field">
+          <label for="case-ref-input">Patientenkürzel / Aktenzeichen</label>
+          <input type="text" id="case-ref-input" placeholder="z. B. MH-2024-03">
+        </div>
+      </div>
+      <button id="create-case-btn" class="btn btn-primary">
+        <i class="ti ti-arrow-right"></i> Fall erstellen
+      </button>
+    </div>
+
+
+    <!-- Cases table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-list"></i> Fälle</span>
+      </div>
+      <div id="cases-loading" class="msg msg-info" style="margin:0;">
+        <i class="ti ti-loader-2"></i> Fälle werden geladen…
+      </div>
+      <div id="cases-empty" class="msg msg-info" hidden style="margin:0;">
+        <i class="ti ti-inbox"></i> Noch keine Fälle angelegt. Erstellen Sie Ihren ersten Fall.
+      </div>
+      <table class="data-table" id="cases-table" style="display:none;">
+        <thead>
+          <tr>
+            <th class="sortable" data-col="title" style="cursor:pointer;white-space:nowrap;">Fall / Aktenzeichen <span class="sort-icon" data-col="title">⇅</span></th>
+            <th class="sortable" data-col="gutachten_type" style="cursor:pointer;white-space:nowrap;">Gutachtentyp <span class="sort-icon" data-col="gutachten_type">⇅</span></th>
+            <th class="sortable" data-col="patient" style="cursor:pointer;white-space:nowrap;">Patient/in <span class="sort-icon" data-col="patient">⇅</span></th>
+            <th class="sortable" data-col="beschlussdatum" style="cursor:pointer;white-space:nowrap;">Beschlussdatum <span class="sort-icon" data-col="beschlussdatum">⇅</span></th>
+            <th class="sortable" data-col="abgabefrist" style="cursor:pointer;white-space:nowrap;">Abgabefrist <span class="sort-icon" data-col="abgabefrist">⇅</span></th>
+            <th class="sortable" data-col="status" style="cursor:pointer;white-space:nowrap;">Status <span class="sort-icon" data-col="status">⇅</span></th>
+            <th class="sortable" data-col="submitted_at" style="cursor:pointer;white-space:nowrap;">Eingereicht <span class="sort-icon" data-col="submitted_at">⇅</span></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="cases-list"></tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+
+
+<!-- SUBMIT MODAL -->
+<div id="case-submit-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.45);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:1.75rem 2rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(26,38,64,0.2);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(46,125,50,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-send" style="color:#2e7d32;font-size:16px;"></i>
+      </div>
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--navy);">Gutachten als eingereicht markieren?</h3>
+    </div>
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:0.5rem;">
+      Fall: <strong id="case-submit-title"></strong>
+    </p>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:1.5rem;">Das Gutachten wird als beim Gericht eingereicht markiert. Der Zeitpunkt der Einreichung wird gespeichert.</p>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="case-submit-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="case-submit-confirm" class="btn btn-primary btn-sm">
+        <i class="ti ti-send"></i> Als eingereicht markieren
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- CASE DELETE MODAL -->
+<div id="case-delete-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.45);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:1.75rem 2rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(26,38,64,0.2);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+      <div style="width:36px;height:36px;border-radius:50%;background:rgba(184,64,64,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-trash" style="color:var(--error);font-size:16px;"></i>
+      </div>
+      <h3 style="margin:0;font-size:15px;font-weight:600;color:var(--navy);">Fall löschen?</h3>
+    </div>
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:0.5rem;">
+      Der Fall <strong id="case-delete-title"></strong> wird dauerhaft gelöscht, einschließlich aller hochgeladenen Dokumente und generierten Gutachten.
+    </p>
+    <p style="font-size:12px;color:var(--text-light);margin-bottom:1.5rem;">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="case-delete-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="case-delete-confirm" class="btn btn-danger btn-sm">
+        <i class="ti ti-trash"></i> Fall löschen
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

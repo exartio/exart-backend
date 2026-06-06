@@ -1,0 +1,139 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Leitfaden</p>
+        <h1 class="page-title">Unterbringung</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-info-circle"></i> Zwei Rechtswege</span>
+      </div>
+      <p style="font-size:13.5px;color:var(--text-mid);line-height:1.8;margin-bottom:1rem;">
+        Die psychiatrische Unterbringung gegen den Willen des Betroffenen ist auf zwei Rechtswegen möglich, die inhaltlich ähnlich, verfahrensrechtlich aber verschieden sind:
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div style="background:var(--cream);border-radius:5px;padding:16px 18px;border-left:3px solid var(--navy);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--navy);font-weight:600;margin-bottom:8px;">Betreuungsrechtlich</div>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:6px;"><strong>§ 1831 BGB</strong></div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Unterbringung durch den Betreuer mit Genehmigung des Betreuungsgerichts. Setzt bestehende Betreuung mit Aufgabenkreis Aufenthaltsbestimmung und Gesundheitssorge voraus.</div>
+        </div>
+        <div style="background:var(--cream);border-radius:5px;padding:16px 18px;border-left:3px solid var(--gold);">
+          <div style="font-size:12px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:600;margin-bottom:8px;">Öffentlich-rechtlich</div>
+          <div style="font-size:13px;color:var(--text-mid);line-height:1.7;margin-bottom:6px;"><strong>PsychKG / UBG der Länder</strong></div>
+          <div style="font-size:12.5px;color:var(--text-mid);line-height:1.6;">Gefahrenabwehrrechtliche Unterbringung durch Ordnungsbehörden oder auf Antrag. Keine bestehende Betreuung erforderlich. Kürzere Fristen, stärkerer Öffentlichkeitscharakter.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-scale"></i> Voraussetzungen § 1831 BGB</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.75rem;">
+        <div style="display:flex;gap:1rem;align-items:flex-start;font-size:13px;">
+          <i class="ti ti-circle-check" style="color:var(--gold);flex-shrink:0;margin-top:2px;"></i>
+          <span style="color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Psychische Erkrankung oder Behinderung</strong> — die eine freie Willensbestimmung ausschließt oder erheblich beeinträchtigt.</span>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;font-size:13px;">
+          <i class="ti ti-circle-check" style="color:var(--gold);flex-shrink:0;margin-top:2px;"></i>
+          <span style="color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Gefahr für die eigene Gesundheit</strong> — erhebliche Selbstgefährdung (nicht zwingend Suizidalität).</span>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;font-size:13px;">
+          <i class="ti ti-circle-check" style="color:var(--gold);flex-shrink:0;margin-top:2px;"></i>
+          <span style="color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Erforderlichkeit</strong> — ambulante Behandlung nicht ausreichend, stationäre Behandlung notwendig.</span>
+        </div>
+        <div style="display:flex;gap:1rem;align-items:flex-start;font-size:13px;">
+          <i class="ti ti-circle-check" style="color:var(--gold);flex-shrink:0;margin-top:2px;"></i>
+          <span style="color:var(--text-mid);line-height:1.7;"><strong style="color:var(--navy);">Verhältnismäßigkeit</strong> — Unterbringung als mildestes geeignetes Mittel.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-clock"></i> Verfahren und Fristen</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;font-size:13px;color:var(--text-mid);">
+        <div style="display:flex;gap:1rem;padding:8px 0;border-bottom:1px solid var(--border-light);">
+          <span style="font-weight:600;color:var(--navy);flex-shrink:0;width:160px;">Einstweilige Anordnung</span>
+          <span style="line-height:1.6;">Möglich ohne vorheriges Gutachten bei dringender Gefahr. Ärztliches Zeugnis genügt. Überprüfung innerhalb kurzer Frist erforderlich.</span>
+        </div>
+        <div style="display:flex;gap:1rem;padding:8px 0;border-bottom:1px solid var(--border-light);">
+          <span style="font-weight:600;color:var(--navy);flex-shrink:0;width:160px;">Regelunterbringung</span>
+          <span style="line-height:1.6;">Psychiatrisches Sachverständigengutachten zwingend erforderlich. Anhörung der betroffenen Person durch das Gericht.</span>
+        </div>
+        <div style="display:flex;gap:1rem;padding:8px 0;border-bottom:1px solid var(--border-light);">
+          <span style="font-weight:600;color:var(--navy);flex-shrink:0;width:160px;">Höchstdauer</span>
+          <span style="line-height:1.6;">Initial max. 1 Jahr, Verlängerung möglich. Regelmäßige gerichtliche Überprüfung.</span>
+        </div>
+        <div style="display:flex;gap:1rem;padding:8px 0;">
+          <span style="font-weight:600;color:var(--navy);flex-shrink:0;width:160px;">Gutachteraufgabe</span>
+          <span style="line-height:1.6;">Beurteilung der medizinischen Voraussetzungen, der Gefahr, der Erforderlichkeit und der voraussichtlichen Dauer.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-book"></i> Relevante Normen</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:0.5rem;">
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:120px;">§ 1831 BGB</span>
+          <span style="color:var(--text-mid);">Genehmigung der Unterbringung durch Betreuer</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:120px;">§§ 312 ff. FamFG</span>
+          <span style="color:var(--text-mid);">Verfahren in Unterbringungssachen</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:120px;">PsychKG</span>
+          <span style="color:var(--text-mid);">Landesgesetze über psychisch Kranke (länderspezifisch)</span>
+        </div>
+        <div style="display:flex;gap:1rem;font-size:13px;">
+          <span style="color:var(--gold);font-weight:600;flex-shrink:0;width:120px;">Art. 2 GG</span>
+          <span style="color:var(--text-mid);">Freiheit der Person — Verhältnismäßigkeitsgebot</span>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

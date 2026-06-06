@@ -1,0 +1,580 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  renderSidebar('abrechnung')
+
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── JVEG rates ────────────────────────────────────────────
+  const JVEG_RATES = { 87: 'M1', 98: 'M2', 131: 'M3' }
+  const COPY_SW_RATE1 = 0.50    // per page up to 50
+  const COPY_SW_RATE2 = 0.15    // per page after 50
+  const COPY_COLOR_RATE1 = 1.00
+  const COPY_COLOR_RATE2 = 0.30
+  const SCHREIB_RATE = 1.50     // per 1000 chars § 12 JVEG
+
+  const POSITION_TYPES = [
+    'Wegezeiten zum / vom Termin',
+    'Exploration / Untersuchung',
+    'Fremdanamnese',
+    'Aktenstudium',
+    'Entwurf, Ausfertigung Schriftsatz',
+    'Korrektur, Druck, Versand',
+    'Anhörung / Gerichtstermin',
+    'Ausfallhonorar',
+    'Sonstiges',
+  ]
+
+  let positions = []
+  let charCount = 0
+  let caseTitle = ''
+  let outputVersion = ''
+
+  // ── Load org settings and user name ─────────────────────
+  let orgData = {}
+  let userName = session.user?.user_metadata?.full_name || session.user?.email || ''
+
+  try {
+    const { org } = await api.get('/api/orgs/me')
+    orgData = org || {}
+  } catch(err) { console.warn('Could not load org settings:', err) }
+
+  // ── Load cases ────────────────────────────────────────────
+  async function loadCases() {
+    const select = document.getElementById('abr-case-select')
+    try {
+      const { cases } = await api.get('/api/cases')
+      ;(cases || []).forEach(c => {
+        const opt = document.createElement('option')
+        opt.value = c.id
+        opt.textContent = `${c.title} (${c.patient_ref || ''})`
+        select.appendChild(opt)
+      })
+    } catch(err) { console.error('Failed to load cases:', err) }
+  }
+
+  await loadCases()
+
+  document.getElementById('abr-case-select')?.addEventListener('change', async e => {
+    const caseId = e.target.value
+    const outputSelect = document.getElementById('abr-output-select')
+    outputSelect.innerHTML = '<option value="">— Version wählen —</option>'
+    outputSelect.disabled = !caseId
+
+    if (!caseId) return
+
+    try {
+      const { outputs } = await api.get(`/api/generate/case/${caseId}/outputs`)
+      const opt = e.target.selectedOptions[0]
+      caseTitle = opt?.textContent || ''
+
+      // Load saved state for this case
+      await loadState(caseId)
+
+      ;(outputs || []).forEach(o => {
+        const opt = document.createElement('option')
+        opt.value = o.id
+        opt.textContent = `Version ${o.version} — ${formatDate(o.created_at)}`
+        opt.dataset.version = o.version
+        outputSelect.appendChild(opt)
+      })
+    } catch(err) { console.error('Failed to load outputs:', err) }
+  })
+
+  document.getElementById('abr-output-select')?.addEventListener('change', async e => {
+    const outputId = e.target.value
+    if (!outputId) return
+
+    const opt = e.target.selectedOptions[0]
+    outputVersion = opt?.textContent || ''
+
+    try {
+      const { char_count_with_spaces } = await api.get(`/api/generate/output/${outputId}/charcount`)
+      charCount = char_count_with_spaces
+
+      document.getElementById('abr-char-count').textContent = charCount.toLocaleString('de-DE')
+      document.getElementById('abr-pages').textContent = Math.ceil(charCount / 1800)
+
+      const schreibAnschlaege = Math.ceil(charCount / 1000) * 1000
+      const schreibFee = (schreibAnschlaege / 1000) * SCHREIB_RATE
+      document.getElementById('abr-schreib-fee').textContent = formatEuro(schreibFee)
+      document.getElementById('abr-char-count').textContent =
+        charCount.toLocaleString('de-DE') + ' (' + schreibAnschlaege.toLocaleString('de-DE') + ' abrechenbar)'
+      document.getElementById('abr-details-card').style.display = 'block'
+
+      recalculate()
+    } catch(err) { console.error('Failed to load output:', err) }
+  })
+
+  // ── Stundensatz ───────────────────────────────────────────
+  document.getElementById('abr-honorar-group')?.addEventListener('change', e => {
+    document.getElementById('abr-rate-display').textContent =
+      parseFloat(e.target.value).toFixed(2).replace('.', ',') + ' €/h'
+    recalculate()
+  })
+
+  // ── Kopiegebühren ─────────────────────────────────────────
+  function calcCopies() {
+    const sw    = parseInt(document.getElementById('abr-copies-sw')?.value || 0)
+    const color = parseInt(document.getElementById('abr-copies-color')?.value || 0)
+
+    let total = 0
+    if (sw <= 50) total += sw * COPY_SW_RATE1
+    else total += (50 * COPY_SW_RATE1) + ((sw - 50) * COPY_SW_RATE2)
+    if (color <= 50) total += color * COPY_COLOR_RATE1
+    else total += (50 * COPY_COLOR_RATE1) + ((color - 50) * COPY_COLOR_RATE2)
+
+    document.getElementById('abr-copies-total').textContent = formatEuro(total)
+    return total
+  }
+
+  document.getElementById('abr-copies-sw')?.addEventListener('input', () => { calcCopies(); recalculate() })
+  document.getElementById('abr-copies-color')?.addEventListener('input', () => { calcCopies(); recalculate() })
+
+  // ── Post- und Telekommunikation ───────────────────────────
+  document.getElementById('abr-post-fee')?.addEventListener('input', e => {
+    let val = parseFloat(e.target.value) || 0
+    if (val > 15) { val = 15; e.target.value = '15' }
+    document.getElementById('abr-post-display').textContent = formatEuro(val)
+    recalculate()
+  })
+
+  // ── Positionen ────────────────────────────────────────────
+  function updateTotalsDisplay() {
+    const totalMins    = positions.reduce((sum, p) => sum + (p.minutes || 0), 0)
+    const roundedHours = Math.ceil(totalMins / 30) * 0.5
+    document.getElementById('abr-total-minutes').textContent =
+      `${totalMins} Minuten`
+    document.getElementById('abr-total-hours').textContent =
+      `${roundedHours.toFixed(1).replace('.', ',')} Stunden`
+  }
+
+  function renderPositions() {
+    const list = document.getElementById('positions-list')
+    list.innerHTML = ''
+
+    if (positions.length === 0) {
+      list.innerHTML = '<p style="font-size:13px;color:var(--text-light);padding:0.5rem 0;">Noch keine Positionen hinzugefügt.</p>'
+    }
+
+    positions.forEach((p, i) => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:grid;grid-template-columns:2fr 2fr 1fr auto;gap:0.75rem;align-items:flex-end;'
+      row.innerHTML = `
+        <div class="field" style="margin:0;">
+          <label style="font-size:11px;">Leistung</label>
+          <select class="pos-type" data-index="${i}">
+            ${POSITION_TYPES.map(t => `<option value="${t}" ${t === p.type ? 'selected' : ''}>${t}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:11px;">Kommentar (z. B. Datum)</label>
+          <input type="text" class="pos-comment" data-index="${i}" value="${p.comment || ''}" placeholder="z. B. 12.06.2026">
+        </div>
+        <div class="field" style="margin:0;">
+          <label style="font-size:11px;">Minuten</label>
+          <input type="number" class="pos-minutes" data-index="${i}" value="${p.minutes || ''}" min="1" placeholder="60">
+        </div>
+        <button class="btn btn-ghost btn-sm pos-delete" data-index="${i}" style="color:var(--error);flex-shrink:0;margin-bottom:1px;">
+          <i class="ti ti-x"></i>
+        </button>
+      `
+      list.appendChild(row)
+    })
+
+    // Wire handlers
+    list.querySelectorAll('.pos-type').forEach(el => {
+      el.addEventListener('change', e => {
+        positions[e.target.dataset.index].type = e.target.value
+        recalculate()
+      })
+    })
+    list.querySelectorAll('.pos-comment').forEach(el => {
+      el.addEventListener('input', e => {
+        positions[e.target.dataset.index].comment = e.target.value
+        recalculate()
+      })
+    })
+    list.querySelectorAll('.pos-minutes').forEach(el => {
+      el.addEventListener('input', e => {
+        positions[e.target.dataset.index].minutes = parseInt(e.target.value) || 0
+        recalculate()
+      })
+    })
+    list.querySelectorAll('.pos-delete').forEach(el => {
+      el.addEventListener('click', e => {
+        positions.splice(parseInt(e.currentTarget.dataset.index), 1)
+        renderPositions()
+        recalculate()
+      })
+    })
+
+    // Update totals display — also called from recalculate()
+    updateTotalsDisplay()
+  }
+
+  document.getElementById('add-position-btn')?.addEventListener('click', () => {
+    positions.push({ type: POSITION_TYPES[0], comment: '', minutes: 60 })
+    renderPositions()
+    recalculate()
+  })
+
+  renderPositions()
+
+  // ── Tax ───────────────────────────────────────────────────
+  document.querySelectorAll('input[name="tax-mode"]').forEach(el => {
+    el.addEventListener('change', recalculate)
+  })
+
+  ;['print-header', 'print-footer', 'print-signature'].forEach(id => {
+    document.getElementById(id)?.addEventListener('change', recalculate)
+  })
+
+  // ── Recalculate summary ───────────────────────────────────
+  // ── Save Abrechnung state ────────────────────────────────
+  function buildState() {
+    return {
+      positions,
+      honorar_group: document.getElementById('abr-honorar-group')?.value,
+      copies_sw:     document.getElementById('abr-copies-sw')?.value,
+      copies_color:  document.getElementById('abr-copies-color')?.value,
+      post_fee:      document.getElementById('abr-post-fee')?.value,
+      tax_mode:      document.querySelector('input[name="tax-mode"]:checked')?.value,
+      print_header:  document.getElementById('print-header')?.checked,
+      print_footer:  document.getElementById('print-footer')?.checked,
+      print_signature: document.getElementById('print-signature')?.checked,
+      output_id:     document.getElementById('abr-output-select')?.value,
+    }
+  }
+
+  async function saveState(caseId) {
+    if (!caseId) return
+    try {
+      await api.post(`/api/abrechnung/${caseId}`, { state: buildState() })
+      console.log('[ABRECHNUNG] State saved')
+    } catch(err) {
+      console.error('[ABRECHNUNG] Save failed:', err.message)
+    }
+  }
+
+  async function loadState(caseId) {
+    if (!caseId) return
+    try {
+      const { abrechnung } = await api.get(`/api/abrechnung/${caseId}`)
+      if (!abrechnung?.state) return
+
+      const s = abrechnung.state
+
+      // Restore positions
+      if (Array.isArray(s.positions)) {
+        positions = s.positions
+        renderPositions()
+      }
+
+      // Restore honorar group
+      if (s.honorar_group) {
+        const sel = document.getElementById('abr-honorar-group')
+        if (sel) {
+          sel.value = s.honorar_group
+          document.getElementById('abr-rate-display').textContent =
+            parseFloat(s.honorar_group).toFixed(2).replace('.', ',') + ' €/h'
+        }
+      }
+
+      // Restore copy fields
+      if (s.copies_sw !== undefined) {
+        const el = document.getElementById('abr-copies-sw')
+        if (el) el.value = s.copies_sw
+      }
+      if (s.copies_color !== undefined) {
+        const el = document.getElementById('abr-copies-color')
+        if (el) el.value = s.copies_color
+      }
+
+      // Restore post fee
+      if (s.post_fee !== undefined) {
+        const el = document.getElementById('abr-post-fee')
+        if (el) {
+          el.value = s.post_fee
+          document.getElementById('abr-post-display').textContent =
+            formatEuro(Math.min(parseFloat(s.post_fee) || 0, 15))
+        }
+      }
+
+      // Restore tax mode
+      if (s.tax_mode) {
+        const radio = document.querySelector(`input[name="tax-mode"][value="${s.tax_mode}"]`)
+        if (radio) radio.checked = true
+      }
+
+      // Restore print options
+      if (s.print_header !== undefined) {
+        const el = document.getElementById('print-header')
+        if (el) el.checked = s.print_header
+      }
+      if (s.print_footer !== undefined) {
+        const el = document.getElementById('print-footer')
+        if (el) el.checked = s.print_footer
+      }
+      if (s.print_signature !== undefined) {
+        const el = document.getElementById('print-signature')
+        if (el) el.checked = s.print_signature
+      }
+
+      // Restore output selection
+      if (s.output_id) {
+        const sel = document.getElementById('abr-output-select')
+        if (sel) {
+          sel.value = s.output_id
+          sel.dispatchEvent(new Event('change'))
+        }
+      }
+
+      recalculate()
+      console.log('[ABRECHNUNG] State restored')
+    } catch(err) {
+      console.warn('[ABRECHNUNG] No saved state:', err.message)
+    }
+  }
+
+  function recalculate() {
+    updateTotalsDisplay()
+    const rate         = parseFloat(document.getElementById('abr-honorar-group')?.value || 131)
+    const totalMins    = positions.reduce((sum, p) => sum + (p.minutes || 0), 0)
+    const roundedHours = Math.ceil(totalMins / 30) * 0.5
+    const timeTotal    = roundedHours * rate
+
+    const schreibAnschlaege = charCount > 0 ? Math.ceil(charCount / 1000) * 1000 : 0
+    const schreibFee  = (schreibAnschlaege / 1000) * SCHREIB_RATE
+    const copiesTotal = calcCopies()
+    const postFee     = Math.min(parseFloat(document.getElementById('abr-post-fee')?.value || 0), 15)
+    const subtotal    = timeTotal + schreibFee + copiesTotal + postFee
+
+    const taxMode     = document.querySelector('input[name="tax-mode"]:checked')?.value
+    const taxAmount   = taxMode === 'ust' ? subtotal * 0.19 : 0
+    const total       = subtotal + taxAmount
+
+    const rateLabel = `M${rate === 87 ? 1 : rate === 98 ? 2 : 3} — ${rate.toFixed(2).replace('.', ',')} €/h`
+
+    const summaryEl = document.getElementById('abr-summary')
+    if (!summaryEl) return
+
+    const showHeader    = document.getElementById('print-header')?.checked
+    const showFooter    = document.getElementById('print-footer')?.checked
+    const showSignature = document.getElementById('print-signature')?.checked
+
+    const fs = orgData?.footer_settings || {}
+    const today = new Date().toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+    const headerHtml = showHeader ? `
+      <div style="margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:2px solid var(--navy);">
+        <div style="font-weight:600;color:var(--navy);font-size:15px;">${orgData?.name || ''}</div>
+        ${orgData?.address ? `<div style="font-size:13px;color:var(--text-mid);">${orgData.address}</div>` : ''}
+      </div>` : ''
+
+    const footerHtml = showFooter ? `
+      <div style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid var(--border-light);display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:11px;color:var(--text-light);line-height:1.8;">
+        <div>
+          ${orgData?.name || ''}<br>
+          ${orgData?.address || ''}
+        </div>
+        <div>
+          ${fs.email ? `E-Mail: ${fs.email}<br>` : ''}
+          ${fs.tel ? `Tel: ${fs.tel}<br>` : ''}
+          ${fs.fax ? `Fax: ${fs.fax}` : ''}
+        </div>
+        <div>
+          ${fs.steuer ? `Steuernummer: ${fs.steuer}<br>` : ''}
+          ${fs.iban ? `IBAN: ${fs.iban}<br>` : ''}
+          ${fs.bank || ''}
+        </div>
+      </div>` : ''
+
+    const signatureHtml = showSignature ? `
+      <div style="margin-top:2rem;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div>
+          <div style="border-top:1px solid var(--navy);padding-top:6px;font-size:13px;color:var(--navy);min-width:220px;">${userName}</div>
+          <div style="font-size:11px;color:var(--text-light);">Sachverständige/r</div>
+        </div>
+        <div style="text-align:right;">
+          <div style="border-top:1px solid var(--navy);padding-top:6px;font-size:13px;color:var(--navy);min-width:140px;">${today}</div>
+          <div style="font-size:11px;color:var(--text-light);">Datum</div>
+        </div>
+      </div>` : ''
+
+    summaryEl.innerHTML = `
+      ${headerHtml}
+      <div style="margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid var(--border-light);">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);margin-bottom:4px;">Gutachten</div>
+        <div style="font-weight:500;color:var(--navy);">${caseTitle || '—'}</div>
+      </div>
+
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:2px solid var(--navy);">
+            <th style="text-align:left;padding:6px 0;color:var(--navy);font-weight:600;">Position</th>
+            <th style="text-align:left;padding:6px 0;color:var(--navy);font-weight:600;">Kommentar</th>
+            <th style="text-align:right;padding:6px 0;color:var(--navy);font-weight:600;">Zeit / Menge</th>
+            <th style="text-align:right;padding:6px 0;color:var(--navy);font-weight:600;">Betrag</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${positions.map(p => {
+            const mins = p.minutes || 0
+            return `
+              <tr style="border-bottom:1px solid var(--border-light);">
+                <td style="padding:8px 0;color:var(--text-mid);">${p.type}</td>
+                <td style="padding:8px 0;color:var(--text-light);">${p.comment || ''}</td>
+                <td style="padding:8px 0;text-align:right;color:var(--text-mid);">${mins} Min</td>
+                <td style="padding:8px 0;text-align:right;color:var(--text-light);font-style:italic;">—</td>
+              </tr>`
+          }).join('')}
+          <tr style="border-bottom:1px solid var(--border-light);background:rgba(26,38,64,0.03);">
+            <td style="padding:8px 0;color:var(--navy);font-weight:500;">Zeithonorar gesamt</td>
+            <td style="padding:8px 0;color:var(--text-light);">aufgerundet auf nächste halbe Stunde</td>
+            <td style="padding:8px 0;text-align:right;color:var(--navy);font-weight:500;">${totalMins} Min → ${roundedHours.toFixed(1).replace('.', ',')} h × ${rate.toFixed(2).replace('.', ',')} €</td>
+            <td style="padding:8px 0;text-align:right;color:var(--navy);font-weight:500;">${formatEuro(timeTotal)}</td>
+          </tr>
+          ${charCount > 0 ? `
+          <tr style="border-bottom:1px solid var(--border-light);">
+            <td style="padding:8px 0;color:var(--text-mid);">Schreibgebühr (§ 12 JVEG)</td>
+            <td style="padding:8px 0;color:var(--text-light);">${charCount.toLocaleString('de-DE')} Anschläge → aufger. ${schreibAnschlaege.toLocaleString('de-DE')}</td>
+            <td style="padding:8px 0;text-align:right;color:var(--text-mid);">1,50 € / 1.000</td>
+            <td style="padding:8px 0;text-align:right;color:var(--navy);font-weight:500;">${formatEuro(schreibFee)}</td>
+          </tr>` : ''}
+          ${copiesTotal > 0 ? `
+          <tr style="border-bottom:1px solid var(--border-light);">
+            <td style="padding:8px 0;color:var(--text-mid);">Kopiegebühren (§ 12 JVEG)</td>
+            <td style="padding:8px 0;color:var(--text-light);">SW: ${document.getElementById('abr-copies-sw')?.value || 0} S. / Farbe: ${document.getElementById('abr-copies-color')?.value || 0} S.</td>
+            <td style="padding:8px 0;text-align:right;color:var(--text-mid);">—</td>
+            <td style="padding:8px 0;text-align:right;color:var(--navy);font-weight:500;">${formatEuro(copiesTotal)}</td>
+          </tr>` : ''}
+          ${postFee > 0 ? `
+          <tr style="border-bottom:1px solid var(--border-light);">
+            <td style="padding:8px 0;color:var(--text-mid);">Post- und Telekommunikation (§ 12 JVEG)</td>
+            <td style="padding:8px 0;color:var(--text-light);">Pauschale</td>
+            <td style="padding:8px 0;text-align:right;color:var(--text-mid);">max. 15,00 €</td>
+            <td style="padding:8px 0;text-align:right;color:var(--navy);font-weight:500;">${formatEuro(postFee)}</td>
+          </tr>` : ''}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid var(--navy);">
+            <td colspan="3" style="padding:10px 0;font-weight:600;color:var(--navy);">Zwischensumme (netto)</td>
+            <td style="padding:10px 0;text-align:right;font-weight:600;color:var(--navy);">${formatEuro(subtotal)}</td>
+          </tr>
+          ${taxMode === 'ust' ? `
+          <tr>
+            <td colspan="3" style="padding:4px 0;color:var(--text-mid);">Umsatzsteuer 19 %</td>
+            <td style="padding:4px 0;text-align:right;color:var(--text-mid);">${formatEuro(taxAmount)}</td>
+          </tr>
+          <tr style="border-top:1px solid var(--border-light);">
+            <td colspan="3" style="padding:10px 0;font-weight:700;color:var(--navy);font-size:15px;">Gesamtbetrag (brutto)</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:var(--navy);font-size:15px;">${formatEuro(total)}</td>
+          </tr>` : `
+          <tr style="border-top:1px solid var(--border-light);">
+            <td colspan="3" style="padding:10px 0;font-weight:700;color:var(--navy);font-size:15px;">Gesamtbetrag</td>
+            <td style="padding:10px 0;text-align:right;font-weight:700;color:var(--navy);font-size:15px;">${formatEuro(total)}</td>
+          </tr>
+          <tr>
+            <td colspan="4" style="padding:4px 0;font-size:11px;color:var(--text-light);">Gemäß § 19 UStG wird keine Umsatzsteuer berechnet (Kleinunternehmerregelung).</td>
+          </tr>`}
+
+        </tfoot>
+      </table>
+      ${signatureHtml}
+      ${footerHtml}
+    `
+  }
+
+  recalculate()
+
+  // ── Print ─────────────────────────────────────────────────
+  document.getElementById('abr-print-btn')?.addEventListener('click', async () => {
+    const caseId   = document.getElementById('abr-case-select')?.value
+    const summaryEl = document.getElementById('abr-summary')
+    if (!summaryEl) return
+
+    // Save state first
+    if (caseId) {
+      const btn = document.getElementById('abr-print-btn')
+      const orig = btn.innerHTML
+      btn.innerHTML = '<i class="ti ti-loader"></i> Speichern…'
+      btn.disabled = true
+      await saveState(caseId)
+      btn.innerHTML = orig
+      btn.disabled = false
+    }
+
+    const printWindow = window.open('', '_blank', 'width=800,height=900')
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html lang="de">
+      <head>
+        <meta charset="UTF-8">
+        <title>Leistungsübersicht</title>
+        <style>
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body {
+            font-family: 'Calibri', Arial, sans-serif;
+            font-size: 13px;
+            color: #1a2640;
+            padding: 40px 48px;
+            line-height: 1.6;
+          }
+          table { width: 100%; border-collapse: collapse; }
+          th { text-align: left; padding: 6px 0; border-bottom: 2px solid #1a2640; font-weight: 600; }
+          td { padding: 7px 0; vertical-align: top; border-bottom: 1px solid #e0dbd3; }
+          tfoot td { border-top: 2px solid #1a2640; border-bottom: none; }
+          .text-right { text-align: right; }
+          .text-light { color: #7a8a9a; }
+          .text-navy { color: #1a2640; }
+          .font-bold { font-weight: 700; }
+          .font-600 { font-weight: 600; }
+          .font-italic { font-style: italic; }
+          .font-small { font-size: 11px; }
+          .border-navy { border-bottom: 2px solid #1a2640; margin-bottom: 1.5rem; padding-bottom: 1rem; }
+          .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.5rem; font-size: 11px; color: #7a8a9a; line-height: 1.8; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e0dbd3; }
+          .sig-row { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 2rem; }
+          .sig-line { border-top: 1px solid #1a2640; padding-top: 6px; min-width: 200px; font-size: 13px; }
+          .sig-label { font-size: 11px; color: #7a8a9a; }
+        </style>
+      </head>
+      <body>
+        <h1 style="font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;margin-bottom:1.5rem;letter-spacing:-0.01em;">Leistungsübersicht</h1>
+        ${summaryEl.innerHTML}
+      </body>
+      </html>
+    `)
+    printWindow.document.close()
+    printWindow.focus()
+    setTimeout(() => {
+      printWindow.print()
+      printWindow.close()
+    }, 400)
+  })
+
+  // ── Helpers ───────────────────────────────────────────────
+  function formatEuro(amount) {
+    return amount.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+  }
+
+})()
+</script>
+
+<style>
+@media print {
+  .app-nav, .sidebar, .page-header, #add-position-btn, #abr-print-btn,
+  .card:not(:last-of-type) .card-header button, footer { display: none !important; }
+  .page-shell { display: block !important; }
+  .main-content { padding: 0 !important; }
+}
+</style>

@@ -1,0 +1,884 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  if (typeof renderSidebar === 'function') renderSidebar('dashboard')
+
+
+  const caseId = getParam('id')
+  if (!caseId) { window.location.href = '/dashboard'; return }
+
+  showDemoBannerIfNeeded()
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  // ── Load case ─────────────────────────────────────────────
+  async function loadCase() {
+    try {
+      const { case: c } = await api.get(`/api/cases/${caseId}`)
+
+      document.getElementById('case-title').textContent = c.title
+      document.getElementById('case-ref').textContent = `Ref: ${c.patient_ref}`
+
+      const statusEl = document.getElementById('case-status')
+      if (statusEl) statusEl.innerHTML = `<span class="badge badge-${c.status === 'completed' ? 'active' : 'draft'}">${statusLabel(c.status)}</span>`
+
+      const medicalDocTypes = ['other', 'gerichtsbeschluss', 'arztbrief', 'befund', 'bericht', 'gutachten', null, undefined]
+      const ownFindingDocTypes = ['exploration', 'untersuchung', 'amdp', 'anamnese', 'sonstig', 'own_findings']
+      const allDocs = c.case_documents || []
+      renderDocuments(allDocs.filter(d => !ownFindingDocTypes.includes(d.doc_type)))
+      renderCourtOrderStatus(c)
+
+      if (c.generated_outputs?.length > 0) {
+        const url = `/dashboard-editor?case=${caseId}&output=${c.generated_outputs[0].id}`
+        const btn1 = document.getElementById('open-editor-btn')
+        const btn2 = document.getElementById('open-editor-btn-2')
+        if (btn1) { btn1.style.display = 'inline-flex'; btn1.href = url }
+        if (btn2) { btn2.style.display = 'inline-flex'; btn2.href = url }
+      }
+
+      const ids = c.statement_ids || []
+      if (ids.length > 0) {
+        currentStatementMode = 'select'
+        selectedStatementIds = ids
+      }
+
+    } catch (err) { console.error('Failed to load case:', err) }
+  }
+
+
+  // ── Save case metadata ────────────────────────────────────────
+  document.getElementById('save-case-meta-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('save-case-meta-btn')
+    const statusEl = document.getElementById('case-meta-save-status')
+    btn.disabled   = true
+    try {
+      await api.patch(`/api/cases/${caseId}`, {
+        aktenzeichen:        document.getElementById('case-aktenzeichen')?.value.trim() || null,
+        gericht:             document.getElementById('case-gericht')?.value.trim() || null,
+        richter:             document.getElementById('case-richter')?.value.trim() || null,
+        beschlussdatum:      document.getElementById('case-beauftragungsdatum')?.value || null,
+        abgabefrist:         document.getElementById('case-abgabefrist')?.value || null,
+        honorar_erwartung:   document.getElementById('case-honorar')?.value ? (parseFloat(document.getElementById('case-honorar').value) || null) : null,
+        patient_ref:         document.getElementById('case-patient-ref')?.value.trim() || document.getElementById('case-title')?.textContent.trim() || 'Unbekannt',
+        betroffener_name:    document.getElementById('case-patient-ref')?.value.trim() || null,
+        betroffener_dob:     document.getElementById('case-betroffener-dob')?.value || null,
+        betroffener_adresse: document.getElementById('case-betroffener-adresse')?.value.trim() || null,
+      })
+      setStatus(statusEl, 'Gespeichert.', 'success')
+      setTimeout(() => { statusEl.hidden = true }, 2000)
+
+      // Update deadline warning
+      const abgabefrist = document.getElementById('case-abgabefrist')?.value
+      if (abgabefrist) {
+        const diff = Math.ceil((new Date(abgabefrist) - new Date()) / (1000 * 60 * 60 * 24))
+        const warnEl  = document.getElementById('deadline-warning')
+        const warnTxt = document.getElementById('deadline-warning-text')
+        if (warnEl && warnTxt && diff <= 7) {
+          warnEl.style.display = 'block'
+          warnTxt.textContent = diff < 0
+            ? `Abgabefrist überschritten! (${new Date(abgabefrist).toLocaleDateString('de-DE')})`
+            : diff === 0 ? 'Abgabefrist ist heute!'
+            : diff === 1 ? 'Abgabefrist ist morgen!'
+            : `Abgabefrist in ${diff} Tagen (${new Date(abgabefrist).toLocaleDateString('de-DE')})`
+        } else if (warnEl) {
+          warnEl.style.display = 'none'
+        }
+      }
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+    }
+    btn.disabled = false
+  })
+
+  // ── Beweisfragen (editable) ──────────────────────────────
+  let localBeweisfragen = []
+
+  function renderBeweisfragen(fragen) {
+    localBeweisfragen = fragen ? [...fragen] : []
+    const listEl  = document.getElementById('beweisfragen-list')
+    const emptyEl = document.getElementById('beweisfragen-empty')
+    if (!listEl) return
+
+    if (localBeweisfragen.length === 0) {
+      listEl.innerHTML = ''
+      if (emptyEl) emptyEl.style.display = 'block'
+      return
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none'
+    listEl.innerHTML = ''
+    localBeweisfragen.forEach((f, i) => {
+      const row = document.createElement('div')
+      row.style.cssText = 'display:flex;align-items:flex-start;gap:0.5rem;background:var(--cream);border-radius:5px;padding:0.5rem 0.75rem;'
+      row.innerHTML = `
+        <span style="font-weight:600;color:var(--navy);font-size:13px;flex-shrink:0;padding-top:6px;">${i + 1}.</span>
+        <input type="text" value="${escapeHtml(f)}" data-index="${i}"
+          style="flex:1;background:transparent;border:none;outline:none;font-size:13px;color:var(--text-mid);padding:4px 0;line-height:1.5;font-family:inherit;"
+          class="beweisfrage-input">
+        <button class="btn btn-ghost btn-sm beweisfrage-delete" data-index="${i}" style="flex-shrink:0;color:var(--error);padding:4px 6px;">
+          <i class="ti ti-x"></i>
+        </button>
+      `
+      listEl.appendChild(row)
+    })
+
+    listEl.querySelectorAll('.beweisfrage-input').forEach(el => {
+      el.addEventListener('input', e => {
+        localBeweisfragen[parseInt(e.target.dataset.index)] = e.target.value
+      })
+      el.addEventListener('blur', saveBeweisfragen)
+    })
+
+    listEl.querySelectorAll('.beweisfrage-delete').forEach(el => {
+      el.addEventListener('click', e => {
+        localBeweisfragen.splice(parseInt(e.currentTarget.dataset.index), 1)
+        renderBeweisfragen(localBeweisfragen)
+        saveBeweisfragen()
+      })
+    })
+  }
+
+  async function saveBeweisfragen() {
+    const statusEl = document.getElementById('beweisfragen-save-status')
+    try {
+      await api.patch(`/api/cases/${caseId}`, { beweisfragen: localBeweisfragen })
+      if (statusEl) {
+        setStatus(statusEl, 'Gespeichert.', 'success')
+        setTimeout(() => { statusEl.hidden = true }, 2000)
+      }
+    } catch(err) {
+      if (statusEl) setStatus(statusEl, err.message, 'error')
+    }
+  }
+
+  // Add new Beweisfrage via input field
+  document.getElementById('add-beweisfrage-btn')?.addEventListener('click', () => {
+    const input = document.getElementById('beweisfrage-input')
+    const text  = input?.value.trim()
+    if (!text) return
+    localBeweisfragen.push(text)
+    renderBeweisfragen(localBeweisfragen)
+    saveBeweisfragen()
+    if (input) input.value = ''
+  })
+
+  document.getElementById('beweisfrage-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('add-beweisfrage-btn')?.click()
+  })
+
+  // ── Court order status ────────────────────────────────────
+  function renderCourtOrderStatus(c) {
+    const badge = document.getElementById('court-order-status-badge')
+    const container = document.getElementById('beweisfragen-container')
+    const list = document.getElementById('beweisfragen-list')
+
+    const statusMap = {
+      none:       ['badge-draft',   'Nicht hochgeladen'],
+      pending:    ['badge-pending', 'Hochgeladen'],
+      processing: ['badge-pending', 'Beweisfragen werden extrahiert…'],
+      ready:      ['badge-active',  'Bereit'],
+      error:      ['badge-error',   'Fehler'],
+    }
+    const [cls, label] = statusMap[c.gerichtsbeschluss_status || 'none'] || statusMap.none
+    if (badge) { badge.className = `badge ${cls}`; badge.textContent = label }
+
+    if (c.gerichtsbeschluss_status === 'processing') {
+      pollCourtOrderStatus()
+    }
+
+    if (c.beweisfragen?.length > 0 && container) {
+      container.style.display = 'block'
+      renderBeweisfragen(c.beweisfragen)
+    }
+  }
+
+  function pollCourtOrderStatus() {
+    const interval = setInterval(async () => {
+      try {
+        const { case: c } = await api.get(`/api/cases/${caseId}`)
+        renderCourtOrderStatus(c)
+        if (c.gerichtsbeschluss_status === 'ready' || c.gerichtsbeschluss_status === 'error') {
+          clearInterval(interval)
+        }
+      } catch { clearInterval(interval) }
+    }, 3000)
+  }
+
+
+
+  // ── Confirm modal ─────────────────────────────────────────
+  function showConfirm({ title, text, icon = 'trash', confirmLabel = 'Löschen', danger = true, onConfirm }) {
+    const overlay    = document.getElementById('confirm-modal-overlay')
+    const titleEl    = document.getElementById('confirm-modal-title')
+    const textEl     = document.getElementById('confirm-modal-text')
+    const iconEl     = document.getElementById('confirm-modal-icon-i')
+    const iconWrap   = document.getElementById('confirm-modal-icon')
+    const okBtn      = document.getElementById('confirm-modal-ok')
+    const cancelBtn  = document.getElementById('confirm-modal-cancel')
+    if (!overlay) { onConfirm(); return }
+
+    if (titleEl)  titleEl.textContent  = title
+    if (textEl)   textEl.textContent   = text
+    if (iconEl)   iconEl.className     = `ti ti-${icon}`
+    if (okBtn)    okBtn.innerHTML      = `<i class="ti ti-${icon}"></i> ${confirmLabel}`
+    if (okBtn)    okBtn.className      = `btn btn-sm ${danger ? 'btn-danger' : 'btn-gold'}`
+    if (iconWrap) iconWrap.style.background = danger ? 'rgba(184,64,64,0.1)' : 'rgba(184,154,94,0.12)'
+    if (iconEl)   iconEl.style.color   = danger ? 'var(--error)' : 'var(--gold)'
+
+    overlay.style.display = 'flex'
+
+    const close    = () => { overlay.style.display = 'none' }
+    const handleOk = () => { close(); onConfirm() }
+
+    okBtn.addEventListener('click', handleOk, { once: true })
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  // ── Import Beweisfragen from other case ───────────────────
+  async function loadImportCaseSelector() {
+    const select = document.getElementById('import-case-select')
+    if (!select) return
+    try {
+      const { cases } = await api.get('/api/cases')
+      // Only show cases that have Beweisfragen and are not the current case
+      const eligible = (cases || []).filter(c => 
+        c.id !== caseId && 
+        c.beweisfragen && 
+        c.beweisfragen.length > 0
+      )
+      if (eligible.length === 0) {
+        const opt = document.createElement('option')
+        opt.value = ''
+        opt.textContent = '— Keine anderen Fälle mit Beweisfragen —'
+        opt.disabled = true
+        select.appendChild(opt)
+        return
+      }
+      eligible.forEach(c => {
+        const opt = document.createElement('option')
+        opt.value = c.id
+        opt.textContent = `${c.title} (${c.beweisfragen.length} Fragen)`
+        opt.dataset.beweisfragen = JSON.stringify(c.beweisfragen)
+        select.appendChild(opt)
+      })
+    } catch(err) { console.error('Failed to load cases for import:', err) }
+  }
+
+  document.getElementById('import-case-select')?.addEventListener('change', e => {
+    const btn     = document.getElementById('import-beweisfragen-btn')
+    const preview = document.getElementById('import-preview')
+    const list    = document.getElementById('import-preview-list')
+    const opt     = e.target.selectedOptions[0]
+
+    if (!e.target.value || !opt?.dataset.beweisfragen) {
+      if (btn) btn.disabled = true
+      if (preview) preview.style.display = 'none'
+      return
+    }
+
+    const fragen = JSON.parse(opt.dataset.beweisfragen)
+    if (list) list.innerHTML = fragen.map(f => `<li>${escapeHtml(f)}</li>`).join('')
+    if (preview) preview.style.display = 'block'
+    if (btn) btn.disabled = false
+  })
+
+  document.getElementById('import-beweisfragen-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('import-beweisfragen-btn')
+    const select   = document.getElementById('import-case-select')
+    const statusEl = document.getElementById('import-status')
+    const opt      = select?.selectedOptions[0]
+
+    if (!opt?.dataset.beweisfragen) return
+
+    const fragen = JSON.parse(opt.dataset.beweisfragen)
+    btn.disabled = true
+
+    try {
+      // Save Beweisfragen to current case
+      await api.patch(`/api/cases/${caseId}`, { beweisfragen: fragen })
+
+      // Update UI
+      const container = document.getElementById('beweisfragen-container')
+      const list      = document.getElementById('beweisfragen-list')
+      const badge     = document.getElementById('court-order-status-badge')
+
+      if (container && list) {
+        container.style.display = 'block'
+        renderBeweisfragen(fragen)
+      }
+      if (badge) { badge.className = 'badge badge-active'; badge.textContent = 'Bereit (übernommen)' }
+
+      setStatus(statusEl, `${fragen.length} Beweisfragen aus „${opt.textContent.split(' (')[0]}" übernommen.`, 'success')
+
+      // Reset selector
+      select.value = ''
+      document.getElementById('import-preview').style.display = 'none'
+      btn.disabled = true
+
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+      btn.disabled = false
+    }
+  })
+
+  await loadImportCaseSelector()
+
+  // ── Court order upload ────────────────────────────────────
+  document.getElementById('upload-court-order')?.addEventListener('change', e => {
+    const btn = document.getElementById('upload-court-order-btn')
+    if (btn) btn.style.display = e.target.files[0] ? 'inline-flex' : 'none'
+  })
+
+  document.getElementById('upload-court-order-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('upload-court-order-btn')
+    const fileInput = document.getElementById('upload-court-order')
+    const statusEl = document.getElementById('court-order-upload-status')
+    const file = fileInput?.files[0]
+    if (!file) return
+
+    btn.disabled = true
+    setStatus(statusEl, 'Wird hochgeladen…', 'info')
+
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('case_id', caseId)
+
+    try {
+      await api.upload('/api/uploads/court-order', fd)
+      setStatus(statusEl, 'Hochgeladen — Beweisfragen werden extrahiert…', 'success')
+      fileInput.value = ''
+      btn.style.display = 'none'
+      // Update badge immediately
+      const badge = document.getElementById('court-order-status-badge')
+      if (badge) { badge.className = 'badge badge-pending'; badge.textContent = 'Beweisfragen werden extrahiert…' }
+      pollCourtOrderStatus()
+    } catch (err) {
+      setStatus(statusEl, err.message, 'error')
+      btn.disabled = false
+    }
+  })
+
+  // ── Statement selection ───────────────────────────────────
+  let currentStatementMode = 'none'
+  let selectedStatementIds = []
+  let allStatements = []
+
+  async function loadStatementSelector() {
+    try {
+      const { statements } = await api.get('/api/uploads/statements')
+      allStatements = (statements || []).filter(s => s.status === 'ready')
+      const list = document.getElementById('stmt-select-list')
+      if (!list) return
+
+      if (allStatements.length === 0) {
+        list.innerHTML = '<li style="font-size:13px;color:var(--text-light);padding:0.5rem 0;">Noch keine verarbeiteten Vorgutachten vorhanden. Laden Sie diese zuerst in der <a href="/dashboard" style="color:var(--navy);">Fallübersicht</a> hoch.</li>'
+        return
+      }
+
+      list.innerHTML = allStatements.map(s => `
+        <li class="doc-item">
+          <input type="checkbox" id="stmt-${s.id}" value="${s.id}"
+            ${selectedStatementIds.includes(s.id) ? 'checked' : ''}
+            style="flex-shrink:0;cursor:pointer;">
+          <div class="doc-item-icon"><i class="ti ti-file-text"></i></div>
+          <label for="stmt-${s.id}" class="doc-item-name" style="cursor:pointer;">${s.file_name}</label>
+        </li>
+      `).join('')
+
+      list.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+        cb.addEventListener('change', () => {
+          selectedStatementIds = [...list.querySelectorAll('input:checked')].map(c => c.value)
+          saveStatementSelection('select', selectedStatementIds)
+        })
+      })
+    } catch (err) { console.error('Failed to load statements:', err) }
+  }
+
+  async function saveStatementSelection(mode, ids = []) {
+    const statusEl = document.getElementById('stmt-selection-status')
+    try {
+      setStatus(statusEl, 'Wird gespeichert…', 'info')
+      await api.patch(`/api/cases/${caseId}/statements`, { mode, statement_ids: ids })
+      setStatus(statusEl, 'Gespeichert.', 'success')
+      setTimeout(() => { if (statusEl) statusEl.hidden = true }, 2000)
+    } catch (err) { setStatus(statusEl, err.message, 'error') }
+  }
+
+  function setActiveMode(mode) {
+    currentStatementMode = mode
+    document.querySelectorAll('.stmt-mode-btn').forEach(btn => {
+      btn.classList.remove('btn-primary')
+      btn.classList.add('btn-ghost')
+    })
+    const activeBtn = document.getElementById(`stmt-mode-${mode}`)
+    if (activeBtn) { activeBtn.classList.remove('btn-ghost'); activeBtn.classList.add('btn-primary') }
+    const list = document.getElementById('stmt-select-list')
+    if (list) list.style.display = mode === 'select' ? 'block' : 'none'
+    if (mode !== 'select') saveStatementSelection(mode)
+  }
+
+  document.getElementById('stmt-mode-all')?.addEventListener('click', () => setActiveMode('all'))
+  document.getElementById('stmt-mode-none')?.addEventListener('click', () => setActiveMode('none'))
+  document.getElementById('stmt-mode-select')?.addEventListener('click', () => {
+    setActiveMode('select')
+    loadStatementSelector()
+  })
+
+  // ── Case documents ────────────────────────────────────────
+  function renderDocuments(docs) {
+    const list = document.getElementById('case-docs-list')
+    if (!list) return
+    list.innerHTML = ''
+    if (docs.length === 0) {
+      list.innerHTML = '<li style="font-size:13px;color:var(--text-light);padding:0.75rem 0;">Noch keine Unterlagen hochgeladen.</li>'
+      return
+    }
+    docs.forEach(doc => {
+      const li = document.createElement('li')
+      li.className = 'doc-item'
+      li.dataset.id = doc.id
+      const isIgnored = doc.ignored || false
+      li.style.opacity = isIgnored ? '0.5' : '1'
+      li.innerHTML = `
+        <div class="doc-item-icon"><i class="ti ti-file-text" style="color:${isIgnored ? 'var(--text-light)' : 'inherit'};"></i></div>
+        <span class="doc-item-name" style="${isIgnored ? 'text-decoration:line-through;color:var(--text-light);' : ''}">${escapeHtml(doc.file_name)}</span>
+        <span class="doc-item-meta">${docStatusLabel(doc.status)}</span>
+        <button class="btn btn-ghost btn-sm doc-ignore-btn" data-id="${doc.id}" data-ignored="${isIgnored}" style="flex-shrink:0;font-size:11px;margin-left:auto;">
+          <i class="ti ti-${isIgnored ? 'eye' : 'eye-off'}"></i> ${isIgnored ? 'Nutzen' : 'Ignorieren'}
+        </button>
+        <button class="btn btn-ghost btn-sm doc-delete-btn" data-id="${doc.id}" style="flex-shrink:0;color:var(--error);">
+          <i class="ti ti-trash"></i>
+        </button>
+      `
+      list.appendChild(li)
+
+      if (doc.status === 'pending' || doc.status === 'processing') {
+        pollDocStatus(doc.id, li.querySelector('.doc-item-meta'))
+      }
+    })
+
+    // Ignore toggle handlers
+    list.querySelectorAll('.doc-ignore-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id      = btn.dataset.id
+        const ignored = btn.dataset.ignored === 'true'
+        if (!ignored) {
+          showConfirm({
+            title: 'Dokument ignorieren?',
+            text: 'Das Dokument wird bei der nächsten Generierung nicht berücksichtigt. Sie können es jederzeit wieder aktivieren.',
+            icon: 'eye-off',
+            confirmLabel: 'Ignorieren',
+            danger: false,
+            onConfirm: async () => {
+              btn.disabled = true
+              try {
+                await api.patch(`/api/uploads/case-document/${id}/ignore`, { ignored: true })
+                await loadCase()
+              } catch(err) { alert(err.message); btn.disabled = false }
+            }
+          })
+        } else {
+          btn.disabled = true
+          try {
+            await api.patch(`/api/uploads/case-document/${id}/ignore`, { ignored: false })
+            await loadCase()
+          } catch(err) { alert(err.message); btn.disabled = false }
+        }
+      })
+    })
+
+    // Delete handlers
+    list.querySelectorAll('.doc-delete-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id
+        showConfirm({
+          title: 'Dokument löschen?',
+          text: 'Das Dokument wird dauerhaft aus diesem Fall entfernt. Diese Aktion kann nicht rückgängig gemacht werden.',
+          icon: 'trash',
+          confirmLabel: 'Löschen',
+          danger: true,
+          onConfirm: async () => {
+            btn.disabled = true
+            try {
+              await api.delete(`/api/uploads/case-document/${id}`)
+              await loadCase()
+            } catch(err) { alert(err.message); btn.disabled = false }
+          }
+        })
+      })
+    })
+  }
+
+  function pollDocStatus(docId, statusEl) {
+    const interval = setInterval(async () => {
+      try {
+        const data = await api.get(`/api/uploads/case-document/${docId}/status`)
+        if (statusEl) statusEl.textContent = docStatusLabel(data.status)
+        if (data.status === 'ready' || data.status === 'error') clearInterval(interval)
+      } catch { clearInterval(interval) }
+    }, 3000)
+  }
+
+  document.getElementById('upload-case-doc')?.addEventListener('change', e => {
+    const btn = document.getElementById('upload-doc-btn')
+    if (btn) btn.style.display = e.target.files[0] ? 'inline-flex' : 'none'
+  })
+
+  document.getElementById('upload-doc-btn')?.addEventListener('click', async () => {
+    const btn = document.getElementById('upload-doc-btn')
+    const fileInput = document.getElementById('upload-case-doc')
+    const docType = document.getElementById('upload-doc-type')?.value || 'other'
+    const statusEl = document.getElementById('upload-doc-status')
+    const file = fileInput?.files[0]
+    if (!file) return
+
+    btn.disabled = true
+    setStatus(statusEl, 'Wird hochgeladen…', 'info')
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('case_id', caseId)
+    fd.append('doc_type', docType)
+
+    try {
+      await api.upload('/api/uploads/case-document', fd)
+      setStatus(statusEl, 'Hochgeladen — OCR läuft…', 'success')
+      fileInput.value = ''
+      btn.style.display = 'none'
+      await loadCase()
+    } catch (err) { setStatus(statusEl, err.message, 'error') }
+    btn.disabled = false
+  })
+
+
+  // ── Template selector ─────────────────────────────────────
+  async function loadTemplateSelector() {
+    const select = document.getElementById('template-select')
+    if (!select) return
+    try {
+      const { templates } = await api.get('/api/templates')
+      const ready = (templates || []).filter(t => t.status === 'ready')
+      ready.forEach(t => {
+        const opt = document.createElement('option')
+        opt.value = t.id
+        opt.textContent = t.name
+        select.appendChild(opt)
+      })
+    } catch(err) { console.error('Failed to load templates:', err) }
+  }
+
+  document.getElementById('template-select')?.addEventListener('change', e => {
+    const preview  = document.getElementById('tpl-preview')
+    const chapters = document.getElementById('tpl-preview-chapters')
+    if (!e.target.value) {
+      if (preview) preview.style.display = 'none'
+      return
+    }
+    // Find template in already-loaded list — re-fetch if needed
+    api.get('/api/templates').then(({ templates }) => {
+      const t = (templates || []).find(t => t.id === e.target.value)
+      if (t?.content_json?.chapters?.length && preview && chapters) {
+        chapters.innerHTML = t.content_json.chapters.map(c => `<li>${c}</li>`).join('')
+        preview.style.display = 'block'
+      } else if (preview) {
+        preview.style.display = 'none'
+      }
+    }).catch(() => {})
+  })
+
+  await loadTemplateSelector()
+
+
+
+  // ── Eigene Befunde (persistent) ──────────────────────────
+  const findingsTypeLabels = {
+    exploration:  'Exploration',
+    untersuchung: 'Untersuchung',
+    amdp:         'AMDP-Befund',
+    anamnese:     'Fremd-/Anamnese',
+    sonstig:      'Sonstiger Befund',
+    own_findings: 'Eigene Befunde',
+  }
+  const ownFindingTypes = ['exploration', 'untersuchung', 'amdp', 'anamnese', 'sonstig', 'own_findings']
+
+  async function loadOwnFindings() {
+    const loadingEl = document.getElementById('own-findings-loading')
+    const listEl    = document.getElementById('own-findings-list')
+    if (!listEl) return
+    try {
+      const { case: c } = await api.get(`/api/cases/${caseId}`)
+      const ownDocs = (c.case_documents || []).filter(d => ownFindingTypes.includes(d.doc_type))
+      if (loadingEl) loadingEl.style.display = 'none'
+      listEl.innerHTML = ''
+      if (ownDocs.length === 0) {
+        listEl.innerHTML = '<li style="font-size:13px;color:var(--text-light);">Noch keine Befunde erfasst.</li>'
+        return
+      }
+      ownDocs.forEach(doc => {
+        const li = document.createElement('li')
+        li.style.cssText = 'background:var(--cream);border-radius:5px;padding:0.75rem 1rem;display:flex;align-items:flex-start;gap:0.75rem;'
+        const statusMap = { ready: 'Bereit', processing: 'Verarbeitung…', pending: 'Ausstehend', error: 'Fehler' }
+        li.innerHTML = `
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--gold);font-weight:500;margin-bottom:3px;">${findingsTypeLabels[doc.doc_type] || doc.doc_type}</div>
+            <div style="font-size:13px;color:var(--text-mid);line-height:1.6;">${escapeHtml(doc.file_name)}</div>
+            ${doc.extracted_text ? `<div style="font-size:12px;color:var(--text-light);margin-top:4px;white-space:pre-wrap;max-height:80px;overflow:hidden;">${escapeHtml(doc.extracted_text.slice(0, 200))}${doc.extracted_text.length > 200 ? '…' : ''}</div>` : ''}
+          </div>
+          <span style="font-size:11px;color:var(--text-light);flex-shrink:0;">${statusMap[doc.status] || doc.status}</span>
+          <button class="btn btn-ghost btn-sm own-finding-delete-btn" data-id="${doc.id}" style="flex-shrink:0;color:var(--error);">
+            <i class="ti ti-x"></i>
+          </button>
+        `
+        listEl.appendChild(li)
+      })
+      listEl.querySelectorAll('.own-finding-delete-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          btn.disabled = true
+          try {
+            await api.delete(`/api/uploads/case-document/${btn.dataset.id}`)
+            await loadOwnFindings()
+          } catch(err) { alert(err.message); btn.disabled = false }
+        })
+      })
+    } catch(err) { console.error('Failed to load own findings:', err) }
+  }
+
+  await loadOwnFindings()
+
+  // Tab switching
+  document.getElementById('finding-tab-text')?.addEventListener('click', () => {
+    document.getElementById('finding-text-panel').style.display = 'block'
+    document.getElementById('finding-file-panel').style.display = 'none'
+    document.getElementById('finding-tab-text').style.background = 'var(--navy)'
+    document.getElementById('finding-tab-text').style.color = '#fff'
+    document.getElementById('finding-tab-file').style.background = ''
+    document.getElementById('finding-tab-file').style.color = ''
+  })
+
+  document.getElementById('finding-tab-file')?.addEventListener('click', () => {
+    document.getElementById('finding-text-panel').style.display = 'none'
+    document.getElementById('finding-file-panel').style.display = 'block'
+    document.getElementById('finding-tab-file').style.background = 'var(--navy)'
+    document.getElementById('finding-tab-file').style.color = '#fff'
+    document.getElementById('finding-tab-text').style.background = ''
+    document.getElementById('finding-tab-text').style.color = ''
+  })
+
+  // Save text finding
+  document.getElementById('add-finding-text-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('add-finding-text-btn')
+    const type     = document.getElementById('findings-type')?.value
+    const text     = document.getElementById('findings-input')?.value.trim()
+    const statusEl = document.getElementById('finding-text-status')
+    if (!text) { document.getElementById('findings-input')?.focus(); return }
+    btn.disabled = true
+    try {
+      const fd = new FormData()
+      fd.append('case_id', caseId)
+      fd.append('doc_type', type)
+      fd.append('text', text)
+      await api.upload('/api/uploads/case-document', fd)
+      document.getElementById('findings-input').value = ''
+      setStatus(statusEl, 'Befund gespeichert.', 'success')
+      await loadOwnFindings()
+    } catch(err) { setStatus(statusEl, err.message, 'error') }
+    btn.disabled = false
+  })
+
+  // Allow Ctrl+Enter to save
+  document.getElementById('findings-input')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      document.getElementById('add-finding-text-btn')?.click()
+    }
+  })
+
+  // File upload for finding
+  document.getElementById('finding-file-input')?.addEventListener('change', e => {
+    const btn = document.getElementById('add-finding-file-btn')
+    if (btn) btn.style.display = e.target.files[0] ? 'inline-flex' : 'none'
+  })
+
+  document.getElementById('add-finding-file-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('add-finding-file-btn')
+    const file     = document.getElementById('finding-file-input')?.files[0]
+    const type     = document.getElementById('findings-type')?.value
+    const statusEl = document.getElementById('finding-file-status')
+    if (!file) return
+    btn.disabled = true
+    try {
+      const fd = new FormData()
+      fd.append('case_id', caseId)
+      fd.append('doc_type', type)
+      fd.append('file', file)
+      await api.upload('/api/uploads/case-document', fd)
+      document.getElementById('finding-file-input').value = ''
+      btn.style.display = 'none'
+      setStatus(statusEl, 'Befunddatei hochgeladen — wird verarbeitet…', 'success')
+      await loadOwnFindings()
+    } catch(err) { setStatus(statusEl, err.message, 'error') }
+    btn.disabled = false
+  })
+
+  // ── Quota check ───────────────────────────────────────────
+  async function checkAndShowQuota() {
+    const statusEl  = document.getElementById('generate-quota-status')
+    const btn       = document.getElementById('generate-btn')
+    const counterEl = document.getElementById('generation-counter')
+
+    try {
+      const { case: c } = await api.get(`/api/cases/${caseId}`)
+      const genCount  = c.generation_count || 0
+      const genMax    = c.max_generations  || 3
+      const remaining = genMax - genCount
+
+      if (counterEl) {
+        counterEl.textContent = `${genCount} / ${genMax} KI-Generierungen für diesen Fall verwendet`
+        counterEl.style.color = remaining === 0 ? 'var(--error)' : remaining === 1 ? '#e65100' : 'var(--text-light)'
+      }
+
+      if (remaining <= 0) {
+        if (statusEl) setStatus(statusEl, `Generierungslimit für diesen Fall erreicht (${genCount}/${genMax}). Bitte erstellen Sie einen neuen Fall.`, 'error')
+        if (btn) btn.disabled = true
+      } else if (remaining === 1) {
+        if (statusEl) setStatus(statusEl, `Letzte verfügbare Generierung für diesen Fall (${genCount}/${genMax}).`, 'info')
+        if (btn) btn.disabled = false
+      } else {
+        if (statusEl) statusEl.hidden = true
+        if (btn) btn.disabled = false
+      }
+    } catch(err) {
+      console.error('Quota check failed:', err)
+      if (btn) btn.disabled = false
+    }
+  }
+
+  await checkAndShowQuota()
+  await applyRoleRestrictions()
+
+  // ── Generate ──────────────────────────────────────────────
+  // ── Legal disclaimer modal before generation ─────────────
+  function showGenerateLegalModal(onConfirm) {
+    const overlay      = document.getElementById('generate-legal-overlay')
+    const checkbox     = document.getElementById('generate-legal-checkbox')
+    const confirmBtn   = document.getElementById('generate-legal-confirm')
+    const cancelBtn    = document.getElementById('generate-legal-cancel')
+    const checkRow     = document.getElementById('generate-legal-checkbox-row')
+    if (!overlay) { onConfirm(); return }
+
+    checkbox.checked    = false
+    confirmBtn.disabled = true
+    overlay.style.display = 'flex'
+
+    const onCheck = () => { confirmBtn.disabled = !checkbox.checked }
+    checkbox.addEventListener('change', onCheck)
+    checkRow.addEventListener('click', e => {
+      if (e.target !== checkbox) { checkbox.checked = !checkbox.checked; onCheck() }
+    })
+
+    const close = () => {
+      overlay.style.display = 'none'
+      checkbox.removeEventListener('change', onCheck)
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      if (!checkbox.checked) return
+      close()
+      onConfirm()
+    }, { once: true })
+
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  document.getElementById('generate-btn')?.addEventListener('click', () => {
+    showGenerateLegalModal(doGenerate)
+  })
+
+  async function doGenerate() {
+    const btn = document.getElementById('generate-btn')
+    const statusEl = document.getElementById('generate-status')
+    // findings are collected via the structured findings list (hidden field #own-findings)
+
+    btn.disabled = true
+    if (statusEl) { statusEl.style.display = 'flex'; statusEl.querySelector('span').textContent = 'Gutachten wird erstellt…' }
+
+    try {
+      const token = (await _supabase.auth.getSession()).data.session?.access_token
+      const res = await fetch(`${EXART_CONFIG.apiUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ case_id: caseId, own_findings: [], template_id: document.getElementById('template-select')?.value || undefined, gutachten_type: document.getElementById('gutachten-type')?.value || 'betreuung' }),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Generierung fehlgeschlagen')
+      }
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let outputId = null
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        const lines = decoder.decode(value).split('\n').filter(l => l.startsWith('data: '))
+        for (const line of lines) {
+          try {
+            const event = JSON.parse(line.slice(6))
+            if (event.type === 'done') outputId = event.output.id
+            if (event.type === 'error') throw new Error(event.message)
+          } catch {}
+        }
+      }
+
+      if (outputId) {
+        if (statusEl) statusEl.querySelector('span').textContent = 'Gutachten erstellt!'
+        const url = `/dashboard-editor?case=${caseId}&output=${outputId}`
+        const btn1 = document.getElementById('open-editor-btn')
+        const btn2 = document.getElementById('open-editor-btn-2')
+        if (btn1) { btn1.style.display = 'inline-flex'; btn1.href = url }
+        if (btn2) { btn2.style.display = 'inline-flex'; btn2.href = url }
+      }
+    } catch (err) {
+      if (statusEl) statusEl.querySelector('span').textContent = err.message
+    } finally {
+      btn.disabled = false
+    }
+  }
+
+  // ── Logout ────────────────────────────────────────────────
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Init ──────────────────────────────────────────────────
+  await loadCase()
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setStatus(el, text, type) {
+    if (!el) return
+    el.hidden = false
+    el.className = `msg msg-${type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'}`
+    el.innerHTML = `<i class="ti ti-${type === 'error' ? 'alert-circle' : type === 'success' ? 'circle-check' : 'loader-2'}"></i> ${text}`
+  }
+
+  function statusLabel(s) {
+    return { draft: 'Entwurf', in_progress: 'In Bearbeitung', completed: 'Abgeschlossen', archived: 'Archiviert' }[s] || s
+  }
+
+  function docStatusLabel(s) {
+    return { pending: 'Ausstehend', processing: 'Verarbeitung…', ready: 'Bereit', error: 'Fehler' }[s] || s
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  }
+
+})()
+</script>

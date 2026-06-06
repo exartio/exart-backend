@@ -1,0 +1,101 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  if (typeof renderSidebar === 'function') renderSidebar('dokument')
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  await showDemoBannerIfNeeded()
+
+  // ── Footer preview ────────────────────────────────────────
+  function updateFooterPreview() {
+    const name    = document.getElementById('org-name')?.value || ''
+    const address = document.getElementById('org-address')?.value || ''
+    const tel     = document.getElementById('org-tel')?.value || ''
+    const fax     = document.getElementById('org-fax')?.value || ''
+    const email   = document.getElementById('org-email')?.value || ''
+    const steuer  = document.getElementById('org-steuer')?.value || ''
+    const iban    = document.getElementById('org-iban')?.value || ''
+    const bank    = document.getElementById('org-bank')?.value || ''
+
+    const col1 = document.getElementById('footer-preview-col1')
+    const col2 = document.getElementById('footer-preview-col2')
+    const col3 = document.getElementById('footer-preview-col3')
+
+    if (col1) col1.innerHTML = [name, address].filter(Boolean).join('<br>') || '—'
+    if (col2) col2.innerHTML = [
+      tel   ? `Tel: ${tel}` : '',
+      fax   ? `Fax: ${fax}` : '',
+      email ? `E-Mail: ${email}` : '',
+    ].filter(Boolean).join('<br>') || '—'
+    if (col3) col3.innerHTML = [
+      steuer ? `Steuernr: ${steuer}` : '',
+      iban   ? `IBAN: ${iban}` : '',
+      bank   || '',
+    ].filter(Boolean).join('<br>') || '—'
+  }
+
+  // Wire live preview
+  ['org-name','org-address','org-tel','org-fax','org-email','org-steuer','org-iban','org-bank'].forEach(id => {
+    document.getElementById(id)?.addEventListener('input', updateFooterPreview)
+  })
+
+  // ── Load org settings ─────────────────────────────────────
+  try {
+    const { org } = await api.get('/api/orgs/me')
+    if (org) {
+      const fs = org.footer_settings || {}
+      const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.value = val }
+      set('org-name',    org.name)
+      set('org-address', org.address)
+      set('org-tel',     fs.tel)
+      set('org-fax',     fs.fax)
+      set('org-email',   fs.email)
+      set('org-steuer',  fs.steuer)
+      set('org-iban',    fs.iban)
+      set('org-bank',    fs.bank)
+      updateFooterPreview()
+    }
+  } catch(err) { console.error('Failed to load org:', err) }
+
+  // ── Save ─────────────────────────────────────────────────
+  document.getElementById('save-dokument-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('save-dokument-btn')
+    const statusEl = document.getElementById('dokument-save-status')
+    btn.disabled   = true
+
+    try {
+      await api.patch('/api/orgs/me', {
+        name:    document.getElementById('org-name')?.value.trim() || null,
+        address: document.getElementById('org-address')?.value.trim() || null,
+        footer_settings: {
+          tel:    document.getElementById('org-tel')?.value.trim() || null,
+          fax:    document.getElementById('org-fax')?.value.trim() || null,
+          email:  document.getElementById('org-email')?.value.trim() || null,
+          steuer: document.getElementById('org-steuer')?.value.trim() || null,
+          iban:   document.getElementById('org-iban')?.value.trim() || null,
+          bank:   document.getElementById('org-bank')?.value.trim() || null,
+        }
+      })
+      statusEl.hidden    = false
+      statusEl.className = 'msg msg-success'
+      statusEl.innerHTML = '<i class="ti ti-circle-check"></i> Gespeichert.'
+      setTimeout(() => { statusEl.hidden = true }, 3000)
+    } catch(err) {
+      statusEl.hidden    = false
+      statusEl.className = 'msg msg-error'
+      statusEl.innerHTML = `<i class="ti ti-alert-circle"></i> ${err.message}`
+    }
+    btn.disabled = false
+  })
+
+})()
+</script>

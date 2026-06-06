@@ -1,0 +1,110 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<div class="page-shell">
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Einstellungen</p>
+        <h1 class="page-title">Dokument</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <div id="demo-banner" class="demo-banner" hidden>
+      <i class="ti ti-info-circle"></i>
+      <span id="demo-reason"></span>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title"><i class="ti ti-building"></i> Praxisinformationen</span>
+      </div>
+      <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.25rem;">
+        Diese Angaben erscheinen im Briefkopf und in der Fußzeile der exportierten Gutachten.
+      </p>
+      <div id="dokument-save-status" class="msg" hidden></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+        <div class="field">
+          <label for="org-name">Praxisname / Institution</label>
+          <input type="text" id="org-name" placeholder="z. B. Gutachtenpraxis Dr. Muster">
+        </div>
+        <div class="field">
+          <label for="org-address">Adresse</label>
+          <input type="text" id="org-address" placeholder="z. B. Musterstraße 1, 12345 Musterstadt">
+        </div>
+      </div>
+
+      <p style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;margin:1.25rem 0 0.75rem;padding-top:1rem;border-top:1px solid var(--border-light);">
+        Fußzeile
+      </p>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;">
+        <div class="field" style="margin:0;">
+          <label for="org-tel">Telefon</label>
+          <input type="text" id="org-tel" placeholder="+49 123 456789">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="org-fax">Fax</label>
+          <input type="text" id="org-fax" placeholder="+49 123 456780">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="org-email">E-Mail</label>
+          <input type="email" id="org-email" placeholder="kontakt@praxis.de">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="org-steuer">Steuernummer</label>
+          <input type="text" id="org-steuer" placeholder="123/456/78901">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="org-iban">IBAN</label>
+          <input type="text" id="org-iban" placeholder="DE12 3456 7890 1234 5678 90">
+        </div>
+        <div class="field" style="margin:0;">
+          <label for="org-bank">Bank</label>
+          <input type="text" id="org-bank" placeholder="Musterbank AG">
+        </div>
+      </div>
+
+      <!-- Footer preview -->
+      <div style="margin-top:1.25rem;padding:1rem;background:var(--cream);border-radius:5px;border:1px solid var(--border-light);">
+        <p style="font-size:10px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;margin-bottom:0.5rem;">Vorschau Fußzeile</p>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;font-size:11px;color:var(--text-mid);line-height:1.8;">
+          <div id="footer-preview-col1">—</div>
+          <div id="footer-preview-col2">—</div>
+          <div id="footer-preview-col3">—</div>
+        </div>
+      </div>
+
+      <button id="save-dokument-btn" class="btn btn-primary" style="margin-top:1rem;">
+        <i class="ti ti-device-floppy"></i> Speichern
+      </button>
+    </div>
+
+  </main>
+</div>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/ki-transparenz">KI-Transparenzhinweis</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

@@ -1,0 +1,178 @@
+<!-- ============================================================
+  exart.io — Global Head Code
+  Add this in: Webflow Designer → Site Settings → Custom Code → Head Code
+  ============================================================ -->
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/exartio/exart-backend@64964c1447c19aeb90bd88a2e24ab7e5e2a9fb9c/public/exart-app.css">
+
+
+<style>
+  button { all: unset; box-sizing: border-box; cursor: pointer; }
+</style>
+
+<!-- Supabase JS SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
+<script>
+// ── Config ────────────────────────────────────────────────────────
+const EXART_CONFIG = {
+  supabaseUrl:  'https://bcxyychocefmurtblmwa.supabase.co',   // replace
+  supabaseKey:  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjeHl5Y2hvY2VmbXVydGJsbXdhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNjA4NTgsImV4cCI6MjA5NTczNjg1OH0.-468XezoQ-mHwgsEUrIfa7fkzHgVbIQudSm9E_EyeUM',             // replace — safe to expose
+  apiUrl:       'https://exart-backend.onrender.com', // replace with your Render URL
+}
+
+// ── Supabase client ───────────────────────────────────────────────
+const { createClient } = supabase
+const _supabase = createClient(EXART_CONFIG.supabaseUrl, EXART_CONFIG.supabaseKey)
+
+// ── API helper ────────────────────────────────────────────────────
+// Attaches the current user's JWT to every request automatically
+const api = {
+  async _getToken() {
+    const { data: { session } } = await _supabase.auth.getSession()
+    return session?.access_token
+  },
+
+  async request(method, path, body = null) {
+    const token = await this._getToken()
+    const opts = {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }
+    if (body) opts.body = JSON.stringify(body)
+    const res = await fetch(`${EXART_CONFIG.apiUrl}${path}`, opts)
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || `Request failed: ${res.status}`)
+    }
+    return res.json()
+  },
+
+  async upload(path, formData) {
+    const token = await this._getToken()
+    const res = await fetch(`${EXART_CONFIG.apiUrl}${path}`, {
+      method: 'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: res.statusText }))
+      throw new Error(err.error || `Upload failed: ${res.status}`)
+    }
+    return res.json()
+  },
+
+  get:    (path)        => api.request('GET',    path),
+  post:   (path, body)  => api.request('POST',   path, body),
+  patch:  (path, body)  => api.request('PATCH',  path, body),
+  delete: (path)        => api.request('DELETE', path),
+}
+
+// ── Auth guard ────────────────────────────────────────────────────
+// Redirects to /login if not authenticated
+// Call at the top of any protected page script
+async function requireAuth() {
+  const { data: { session } } = await _supabase.auth.getSession()
+  if (!session) {
+    window.location.href = '/login'
+    return null
+  }
+  return session
+}
+
+// ── Access level cache ────────────────────────────────────────────
+let _orgContext = null
+async function getOrgContext(force = false) {
+  if (_orgContext && !force) return _orgContext
+  try {
+    _orgContext = await api.get('/api/orgs/me')
+  } catch {
+    _orgContext = { org: null, accessLevel: 'none' }
+  }
+  return _orgContext
+}
+
+// ── Demo mode banner ──────────────────────────────────────────────
+// Shows a banner when the user is in demo mode
+async function showDemoBannerIfNeeded() {
+  const ctx = await getOrgContext()
+  if (ctx.accessLevel !== 'full') {
+    const banner = document.getElementById('demo-banner')
+    if (banner) {
+      banner.style.display = 'block'
+      const reason = document.getElementById('demo-reason')
+      if (reason) {
+        reason.textContent = ctx.accessLevel === 'demo'
+          ? 'Vollzugang nach Verifizierung eines approbierten Arztes verfügbar.'
+          : 'Bitte abonnieren Sie einen Plan, um alle Funktionen zu nutzen.'
+      }
+    }
+  }
+}
+
+// ── Utility: get URL param ────────────────────────────────────────
+function getParam(name) {
+  return new URLSearchParams(window.location.search).get(name)
+}
+
+// ── Utility: format date (German) ────────────────────────────────
+function formatDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('de-DE', {
+    day: '2-digit', month: '2-digit', year: 'numeric'
+  })
+}
+
+
+
+function renderNav() {
+  const el = document.getElementById('global-nav')
+  if (!el) return
+  el.innerHTML = `
+    <nav class="nav">
+      <a href="/" class="nav-logo">
+        <span class="nav-logo-mark">exart</span>
+        <span class="nav-logo-sub">.io</span>
+      </a>
+      <div class="nav-links">
+        <a href="/#so-funktioniert-es">So funktioniert es</a>
+        <a href="/#datenschutz">Datenschutz</a>
+        <a href="/#preise">Preise</a>
+        <button class="nav-cta" onclick="window.location.href='/login'">Zugang</button>
+      </div>
+    </nav>`
+}
+
+
+
+
+function renderFooter() {
+  const el = document.getElementById('global-footer')
+  if (!el) return
+  el.innerHTML = `
+    <footer class="footer">
+      <div class="footer-inner">
+        <div class="footer-links">
+		  
+          <div class="footer-logo">exart.io</div>
+          <a href="/impressum">Impressum</a>
+          <a href="/datenschutz">Datenschutzerklärung</a>
+          <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+          <a href="/sicherheit">Sicherheit</a>
+          <a href="/transparenz">KI-Transparenzhinweis</a>
+          <a href="mailto:kontakt@exart.io">Kontakt</a>
+		  <br>
+          <center><p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p></center>
+		
+        </div>
+      </div>
+    </footer>`
+}
+</script>

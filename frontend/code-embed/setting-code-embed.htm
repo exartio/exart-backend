@@ -1,0 +1,374 @@
+<!-- APP NAVBAR -->
+<nav class="app-nav">
+  <a href="/dashboard" class="app-nav-logo">
+    <span class="app-nav-logo-mark">exart</span>
+    <span class="app-nav-logo-sub">.io</span>
+  </a>
+  <div class="app-nav-sep"></div>
+  <div class="app-nav-links">
+    <a href="/dashboard"><i class="ti ti-layout-dashboard"></i> Übersicht</a>
+  </div>
+  <div class="app-nav-right">
+    <span class="app-nav-user" id="nav-user-name"></span>
+    <div class="app-nav-avatar" id="logout-btn" title="Abmelden">
+      <i class="ti ti-logout"></i>
+    </div>
+  </div>
+</nav>
+
+<!-- DEMO BANNER -->
+<div id="demo-banner" class="demo-banner" hidden>
+  <i class="ti ti-info-circle"></i>
+  <span id="demo-reason"></span>
+</div>
+
+<!-- PAGE SHELL -->
+<div class="page-shell">
+
+  <aside class="sidebar" id="sidebar-mount"></aside>
+
+  <main class="main-content">
+
+    <div class="page-header">
+      <div class="page-header-left">
+        <p class="page-eyebrow">Konto</p>
+        <h1 class="page-title">Einstellungen</h1>
+        <div class="page-divider"></div>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB NAV -->
+    <div style="display:flex;gap:0.25rem;margin-bottom:1.5rem;background:#fff;border:1px solid var(--border-light);border-radius:6px;padding:4px;">
+      <button class="settings-link active" data-section="profil" style="flex:1;padding:7px 12px;border:none;background:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--text-mid);transition:all 0.15s;">
+        <i class="ti ti-user"></i> Profil
+      </button>
+      <button class="settings-link" data-section="verifizierung" style="flex:1;padding:7px 12px;border:none;background:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--text-mid);transition:all 0.15s;">
+        <i class="ti ti-id-badge"></i> Verifizierung
+      </button>
+      <button class="settings-link" data-section="abonnement" style="flex:1;padding:7px 12px;border:none;background:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--text-mid);transition:all 0.15s;">
+        <i class="ti ti-credit-card"></i> Abonnement
+      </button>
+      <button class="settings-link" data-section="sicherheit" style="flex:1;padding:7px 12px;border:none;background:none;border-radius:4px;font-size:13px;font-family:inherit;cursor:pointer;color:var(--text-mid);transition:all 0.15s;">
+        <i class="ti ti-shield-lock"></i> Sicherheit
+      </button>
+
+    </div>
+
+    <style>
+      .settings-link.active { background: var(--navy) !important; color: #fff !important; }
+      .settings-section { display: none; }
+      .settings-section.active { display: block; }
+    </style>
+
+    <!-- PROFIL -->
+    <div id="section-profil" class="settings-section active">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-user"></i> Profilinformationen</span>
+        </div>
+        <div id="profile-save-status" class="msg" hidden></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+          <div class="field">
+            <label for="profile-name">Vollständiger Name</label>
+            <input type="text" id="profile-name" placeholder="Dr. med. Erika Muster">
+          </div>
+          <div class="field">
+            <label for="profile-email">E-Mail-Adresse</label>
+            <input type="email" id="profile-email" placeholder="dr.muster@praxis.de" disabled style="opacity:0.6;">
+            <p class="field-hint">E-Mail-Adresse kann nicht geändert werden.</p>
+          </div>
+          <div class="field" style="grid-column:span 2;">
+            <label for="profile-title">Berufsbezeichnung</label>
+            <input type="text" id="profile-title" placeholder="z. B. Fachärztin für Psychiatrie und Psychotherapie">
+          </div>
+        </div>
+        <button id="save-profile-btn" class="btn btn-primary">
+          <i class="ti ti-device-floppy"></i> Änderungen speichern
+        </button>
+      </div>
+    </div>
+
+    <!-- VERIFIZIERUNG -->
+    <div id="section-verifizierung" class="settings-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-id-badge"></i> Approbationsnachweis</span>
+          <span id="verification-status" class="badge badge-pending">Ausstehend</span>
+        </div>
+        <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.25rem;">
+          Die KI-gestützte Gutachtenerstellung steht approbierten Ärztinnen und Ärzten zur Verfügung. Nicht-ärztliche Mitglieder einer Organisation können als Assistent/in Dokumente hochladen und Fälle anlegen, jedoch keine Gutachten generieren oder exportieren. Laden Sie Ihren Approbationsnachweis oder ein gleichwertiges EU-Dokument hoch. Nach Prüfung (24–48 Std.) wird Ihr Konto freigeschaltet.
+        </p>
+        <div class="verif-status-row">
+          <div>
+            <div class="verif-status-label">Aktueller Status</div>
+            <div style="font-size:12px;color:var(--text-light);margin-top:2px;" id="verif-detail-text">Kein Dokument hochgeladen.</div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="verif-doc-type">Dokumentart</label>
+          <select id="verif-doc-type">
+            <option value="approbation">Approbationsurkunde (Deutschland)</option>
+            <option value="facharzturkunde">Facharztanerkennung</option>
+            <option value="berufsausweis">EU-Berufsausweis</option>
+            <option value="other">Sonstiger Nachweis</option>
+          </select>
+        </div>
+        <div class="upload-zone" id="verif-drop-zone">
+          <div class="upload-zone-icon"><i class="ti ti-certificate"></i></div>
+          <p>
+            Dokument hierher ziehen oder auswählen
+            <small>PDF — max. 10 MB</small>
+          </p>
+          <label for="verif-file" class="btn btn-ghost btn-sm" style="cursor:pointer;">
+            <i class="ti ti-folder-open"></i> Datei auswählen
+          </label>
+          <input type="file" id="verif-file" accept=".pdf">
+        </div>
+        <!-- Shown when verified -->
+        <div id="verif-verified-msg" style="display:none;align-items:center;gap:12px;padding:1rem 1.25rem;background:rgba(46,125,50,0.08);border-radius:6px;border:1px solid rgba(46,125,50,0.2);margin-top:0.75rem;">
+          <i class="ti ti-circle-check" style="color:#2e7d32;font-size:20px;flex-shrink:0;"></i>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#2e7d32;">Approbation bestätigt</div>
+            <div style="font-size:12px;color:var(--text-mid);margin-top:2px;">Ihre Approbation ist verifiziert. Sie haben vollen Zugang zur Gutachtenerstellung und allen Funktionen von exart.io.</div>
+          </div>
+        </div>
+        <div id="verif-upload-status" class="msg" hidden style="margin-top:0.75rem;"></div>
+        <button id="upload-verif-btn" class="btn btn-primary" style="margin-top:0.75rem;display:none;">
+          <i class="ti ti-upload"></i> Dokument einreichen
+        </button>
+      </div>
+    </div>
+
+    <!-- ABONNEMENT -->
+    <div id="section-abonnement" class="settings-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-credit-card"></i> Aktuelles Abonnement</span>
+        </div>
+        <div class="plan-current">
+          <div>
+            <div class="plan-current-name" id="plan-name">—</div>
+            <div class="plan-current-meta" id="plan-meta">—</div>
+          </div>
+          <span id="plan-status-badge" class="badge badge-draft">—</span>
+        </div>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+          <button id="manage-billing-btn" class="btn btn-ghost btn-sm">
+            <i class="ti ti-external-link"></i> Abonnement verwalten
+          </button>
+          <button id="upgrade-btn" class="btn btn-primary btn-sm">
+            <i class="ti ti-arrow-up-circle"></i> Tarif wechseln
+          </button>
+          <button id="buy-unit-btn" class="btn btn-ghost btn-sm" style="display:none;">
+            <i class="ti ti-plus"></i> Einzelgutachten kaufen — <span id="unit-price">59 €</span>
+          </button>
+        </div>
+        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:0.5px solid var(--border);">
+          <p style="font-size:12px;color:var(--text-light);line-height:1.6;">
+            Rechnungen, Zahlungsmethoden und Kündigung verwalten Sie über das Stripe-Kundenportal. Alle Tarife umfassen EU-Datenhaltung und DSGVO-konforme Verarbeitung.
+          </p>
+        </div>
+        <!-- Referral section -->
+        <div style="margin-top:1.5rem;padding-top:1.25rem;border-top:0.5px solid var(--border);">
+          <p style="font-size:12px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);font-weight:600;margin-bottom:1rem;">Empfehlungsprogramm</p>
+
+          <!-- Own referral code -->
+          <div style="margin-bottom:1.25rem;">
+            <p style="font-size:13px;color:var(--text-mid);margin-bottom:0.5rem;line-height:1.6;">Teilen Sie Ihren persönlichen Empfehlungscode mit Kollegen. Wenn diese sich anmelden und ein Abonnement abschließen, erhalten <strong>Sie</strong> eine Gutschrift von 50&nbsp;€ auf Ihre nächste Rechnung — und Ihr Kollege ebenfalls 50&nbsp;€.</p>
+            <div style="display:flex;align-items:center;gap:0.75rem;">
+              <div style="background:var(--cream);border:1px solid var(--border-mid);border-radius:4px;padding:10px 16px;font-family:monospace;font-size:18px;font-weight:600;color:var(--navy);letter-spacing:0.25em;" id="referral-code-display">——————</div>
+              <button id="copy-referral-btn" class="btn btn-ghost btn-sm"><i class="ti ti-copy"></i> Kopieren</button>
+            </div>
+            <div id="referral-stats" style="font-size:12px;color:var(--text-light);margin-top:0.5rem;display:none;">
+              <span id="referral-count">0</span> Empfehlungen · <span id="rewarded-count">0</span> Prämien ausgezahlt
+            </div>
+          </div>
+
+          <!-- Enter referrer code -->
+          <div>
+            <p style="font-size:13px;color:var(--text-mid);margin-bottom:0.5rem;">Wurden Sie von einem Kollegen empfohlen? Geben Sie seinen Code ein:</p>
+            <div id="referral-input-wrap" style="display:flex;gap:0.75rem;align-items:flex-end;">
+              <div class="field" style="margin:0;flex:1;">
+                <input type="text" id="referral-input" placeholder="z. B. ABCDEFGH" maxlength="8" style="text-transform:uppercase;letter-spacing:0.15em;font-family:monospace;">
+              </div>
+              <button id="apply-referral-btn" class="btn btn-primary btn-sm" style="flex-shrink:0;">
+                <i class="ti ti-check"></i> Bestätigen
+              </button>
+            </div>
+            <div id="referral-status" class="msg" hidden style="margin-top:0.75rem;"></div>
+            <div id="referral-confirmed" style="display:none;font-size:13px;color:#2e7d32;margin-top:0.5rem;">
+              <i class="ti ti-circle-check"></i> Geworben durch <strong id="referrer-name"></strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SICHERHEIT -->
+    <div id="section-sicherheit" class="settings-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-shield-lock"></i> Sicherheit</span>
+        </div>
+        <div id="pw-change-status" class="msg" hidden></div>
+        <div class="field">
+          <label for="pw-current">Aktuelles Passwort</label>
+          <input type="password" id="pw-current" placeholder="••••••••">
+        </div>
+        <div class="field">
+          <label for="pw-new">Neues Passwort</label>
+          <input type="password" id="pw-new" placeholder="Min. 8 Zeichen">
+        </div>
+        <div class="field">
+          <label for="pw-confirm">Neues Passwort bestätigen</label>
+          <input type="password" id="pw-confirm" placeholder="••••••••">
+        </div>
+        <button id="change-pw-btn" class="btn btn-primary">
+          <i class="ti ti-lock"></i> Passwort ändern
+        </button>
+      </div>
+
+      <div class="card" style="border-color:rgba(184,64,64,0.2);">
+        <div class="card-header">
+          <span class="card-title" style="color:var(--error);">
+            <i class="ti ti-trash" style="color:var(--error);"></i> Konto löschen
+          </span>
+        </div>
+        <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1rem;">
+          Das Löschen Ihres Kontos entfernt alle Fälle, Dokumente und Gutachten dauerhaft. Diese Aktion kann nicht rückgängig gemacht werden.
+        </p>
+        <button id="delete-account-btn" class="btn btn-danger btn-sm">
+          <i class="ti ti-trash"></i> Konto unwiderruflich löschen
+        </button>
+      </div>
+    </div>
+
+    <!-- VORLAGEN -->
+    <div id="section-vorlagen" class="settings-section">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-template"></i> Gutachten-Vorlagen</span>
+        </div>
+        <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.25rem;">
+          Laden Sie eine DOCX- oder PDF-Datei mit Ihrer bevorzugten Gutachtenstruktur hoch. Das System extrahiert Kapitelreihenfolge, Einleitungstext und Schlussformel. Vorlagen können pro Fall ausgewählt werden.
+        </p>
+
+        <!-- Upload form -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+          <div class="field" style="margin:0;">
+            <label for="tpl-name">Vorlagenname</label>
+            <input type="text" id="tpl-name" placeholder="z. B. Amtsgericht Magdeburg — Standard">
+          </div>
+          <div class="field" style="margin:0;">
+            <label for="tpl-description">Beschreibung (optional)</label>
+            <input type="text" id="tpl-description" placeholder="z. B. Mit erweitertem Befundkapitel">
+          </div>
+        </div>
+
+        <div class="upload-zone" style="margin-bottom:0.75rem;">
+          <div class="upload-zone-icon"><i class="ti ti-file-upload"></i></div>
+          <p>Vorlage hierher ziehen oder auswählen<small>DOCX oder PDF — max. 20 MB</small></p>
+          <label for="tpl-file" class="btn btn-ghost btn-sm" style="cursor:pointer;">
+            <i class="ti ti-folder-open"></i> Datei auswählen
+          </label>
+          <input type="file" id="tpl-file" accept=".pdf,.docx">
+        </div>
+
+        <button id="upload-tpl-btn" class="btn btn-primary btn-sm" style="display:none;">
+          <i class="ti ti-upload"></i> Vorlage hochladen
+        </button>
+        <div id="tpl-upload-status" class="msg msg-info" hidden style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- Template list -->
+      <div class="card" style="margin-top:1rem;">
+        <div class="card-header">
+          <span class="card-title"><i class="ti ti-list"></i> Gespeicherte Vorlagen</span>
+        </div>
+        <div id="tpl-loading" class="msg msg-info" style="margin:0;">
+          <i class="ti ti-loader-2"></i> Vorlagen werden geladen…
+        </div>
+        <ul class="doc-list" id="tpl-list" style="margin:0;"></ul>
+      </div>
+    </div>
+
+
+
+    </div>
+
+
+  </main>
+</div>
+
+<!-- DELETE ACCOUNT MODAL -->
+<div id="delete-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(26,38,64,0.5);z-index:1000;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:8px;padding:2rem;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:1rem;">
+      <div style="width:40px;height:40px;border-radius:50%;background:rgba(184,64,64,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <i class="ti ti-trash" style="color:var(--error);font-size:18px;"></i>
+      </div>
+      <h3 style="margin:0;font-size:16px;font-weight:600;color:var(--navy);">Konto wirklich löschen?</h3>
+    </div>
+    <p style="font-size:13px;color:var(--text-mid);line-height:1.6;margin-bottom:1.25rem;">
+      Diese Aktion ist <strong>unwiderruflich</strong>. Alle Ihre Fälle, hochgeladenen Dokumente, generierten Gutachten und Kontodaten werden permanent gelöscht.
+    </p>
+    <p style="font-size:13px;color:var(--text-mid);margin-bottom:0.5rem;">Geben Sie zur Bestätigung <strong>LÖSCHEN</strong> ein:</p>
+    <input type="text" id="delete-confirm-input" placeholder="LÖSCHEN" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--border-mid);border-radius:4px;font-size:13px;margin-bottom:1rem;font-family:var(--sans);">
+    <div id="delete-modal-error" class="msg msg-error" hidden style="margin-bottom:1rem;">
+      <i class="ti ti-alert-circle"></i><span></span>
+    </div>
+    <div style="display:flex;gap:0.75rem;justify-content:flex-end;">
+      <button id="delete-modal-cancel" class="btn btn-ghost btn-sm">Abbrechen</button>
+      <button id="delete-modal-confirm" class="btn btn-danger btn-sm">
+        <i class="ti ti-trash"></i> Endgültig löschen
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// Settings tab navigation — handled in settings-script.html
+document.querySelectorAll('.settings-link').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault()
+    const section = link.dataset.section
+    document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'))
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'))
+    link.classList.add('active')
+    document.getElementById('section-' + section)?.classList.add('active')
+  })
+})
+
+// File selection preview for verif upload
+document.getElementById('verif-file')?.addEventListener('change', e => {
+  if (e.target.files[0]) document.getElementById('upload-verif-btn').style.display = 'inline-flex'
+})
+
+// Delete account modal
+const overlay = document.getElementById('delete-modal-overlay')
+document.getElementById('delete-account-btn')?.addEventListener('click', () => {
+  document.getElementById('delete-confirm-input').value = ''
+  document.getElementById('delete-modal-error').hidden = true
+  overlay.style.display = 'flex'
+})
+document.getElementById('delete-modal-cancel')?.addEventListener('click', () => {
+  overlay.style.display = 'none'
+})
+overlay?.addEventListener('click', e => {
+  if (e.target === overlay) overlay.style.display = 'none'
+})
+</script>
+
+<footer class="footer" style="margin-top:auto;">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

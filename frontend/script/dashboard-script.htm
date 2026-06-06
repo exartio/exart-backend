@@ -1,0 +1,388 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  if (typeof renderSidebar === 'function') renderSidebar('dashboard')
+
+  // Show user name
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  // Logout
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Demo banner ───────────────────────────────────────────
+  try {
+    const profile = await api.get('/api/profile')
+    const ctx = await getOrgContext()
+    const banner = document.getElementById('demo-banner')
+    const reason = document.getElementById('demo-reason')
+    if (ctx.accessLevel !== 'full' && banner && reason) {
+      banner.style.display = 'flex'
+      if (profile.verification_status === 'unsubmitted') {
+        reason.innerHTML = 'Ihr Konto ist noch nicht verifiziert. <a href="/dashboard-settings" style="color:var(--warn);font-weight:500;">Approbationsnachweis jetzt einreichen →</a>'
+      } else if (profile.verification_status === 'pending' || profile.verification_status === 'submitted') {
+        reason.textContent = 'Ihr Approbationsnachweis wird derzeit geprüft.'
+      } else if (profile.verification_status === 'rejected') {
+        reason.innerHTML = 'Ihr Dokument wurde abgelehnt. <a href="/dashboard-settings" style="color:var(--warn);font-weight:500;">Erneut einreichen →</a>'
+      } else {
+        reason.textContent = 'Vollzugang nach Abschluss eines Abonnements verfügbar.'
+      }
+    }
+  } catch(err) {
+    await showDemoBannerIfNeeded()
+  }
+
+  // ── Invite result banner ──────────────────────────────────
+  const inviteParam    = getParam('invite_success')
+  const inviteError    = getParam('invite_error')
+  const inviteExpected = getParam('expected')
+  if (inviteParam === 'true') {
+    const banner = document.createElement('div')
+    banner.style.cssText = 'background:rgba(46,125,50,0.1);border:1px solid rgba(46,125,50,0.3);border-radius:5px;padding:0.875rem 1.25rem;margin-bottom:1rem;font-size:13px;color:#2e7d32;display:flex;align-items:center;gap:0.75rem;'
+    banner.innerHTML = '<i class="ti ti-circle-check" style="font-size:18px;flex-shrink:0;"></i><span>Einladung erfolgreich angenommen. Sie sind jetzt Mitglied der Organisation.</span>'
+    document.querySelector('.main-content')?.prepend(banner)
+    setTimeout(() => banner.remove(), 8000)
+    history.replaceState({}, '', '/dashboard')
+  } else if (inviteError) {
+    const errorMessages = {
+      missing_token: 'Kein Einladungstoken angegeben.',
+      not_found:     'Einladung nicht gefunden oder ungültig.',
+      already_used:  'Diese Einladung wurde bereits verwendet.',
+      expired:       'Diese Einladung ist abgelaufen. Bitte fordern Sie eine neue an.',
+      wrong_email:   `Diese Einladung gilt für eine andere E-Mail-Adresse${inviteExpected ? ` (${decodeURIComponent(inviteExpected)})` : ''}.`,
+    }
+    const banner = document.createElement('div')
+    banner.style.cssText = 'background:rgba(198,40,40,0.08);border:1px solid rgba(198,40,40,0.2);border-radius:5px;padding:0.875rem 1.25rem;margin-bottom:1rem;font-size:13px;color:var(--error);display:flex;align-items:center;gap:0.75rem;'
+    banner.innerHTML = `<i class="ti ti-alert-circle" style="font-size:18px;flex-shrink:0;"></i><span>${errorMessages[inviteError] || 'Fehler bei der Einladung.'}</span>`
+    document.querySelector('.main-content')?.prepend(banner)
+    history.replaceState({}, '', '/dashboard')
+  }
+
+  // ── Sort state ────────────────────────────────────────────
+  let sortCol = 'abgabefrist'
+  let sortDir = 'asc'
+
+  const TYPE_LABELS = {
+    betreuung:        'Betreuung',
+    unterbringung:    'Unterbringung',
+    zwangsmassnahmen: 'Zwangsmaßnahmen',
+    allgemein:        'Allgemein',
+  }
+
+  const STATUS_ORDER = { draft: 0, in_progress: 1, completed: 2, submitted: 3 }
+
+  function abbreviateName(name) {
+    if (!name) return '—'
+    const parts = name.trim().split(/\s+/)
+    if (parts.length === 1) return parts[0]
+    const last = parts[parts.length - 1]
+    const initials = parts.slice(0, -1).map(p => p[0].toUpperCase() + '.').join(' ')
+    return `${initials} ${last}`
+  }
+
+  function getGutachtenType(c) {
+    const outputs = c.generated_outputs || []
+    if (!outputs.length) return ''
+    const latest = outputs.sort((a, b) => b.version - a.version)[0]
+    return latest?.prompt_snapshot?.gutachten_type || ''
+  }
+
+  function sortCases(cases) {
+    return [...cases].sort((a, b) => {
+      let va, vb
+      switch(sortCol) {
+        case 'title':
+          va = (a.title || '').toLowerCase(); vb = (b.title || '').toLowerCase(); break
+        case 'gutachten_type':
+          va = TYPE_LABELS[getGutachtenType(a)] || ''; vb = TYPE_LABELS[getGutachtenType(b)] || ''; break
+        case 'patient':
+          va = (a.betroffener_name || a.patient_ref || '').toLowerCase()
+          vb = (b.betroffener_name || b.patient_ref || '').toLowerCase(); break
+        case 'beschlussdatum':
+          va = a.beschlussdatum || '0000'; vb = b.beschlussdatum || '0000'; break
+        case 'abgabefrist':
+          va = a.abgabefrist || '9999'; vb = b.abgabefrist || '9999'; break
+        case 'status':
+          va = STATUS_ORDER[a.status] ?? 0; vb = STATUS_ORDER[b.status] ?? 0; break
+        case 'submitted_at':
+          va = a.submitted_at || ''; vb = b.submitted_at || ''; break
+        default:
+          va = a.created_at || ''; vb = b.created_at || ''
+      }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1
+      if (va > vb) return sortDir === 'asc' ?  1 : -1
+      return 0
+    })
+  }
+
+  function updateSortIcons() {
+    document.querySelectorAll('.sort-icon').forEach(el => {
+      el.className = 'sort-icon'
+      if (el.dataset.col === sortCol) el.className = `sort-icon ${sortDir}`
+    })
+  }
+
+  // ── Load cases ────────────────────────────────────────────
+  let allCases = []
+  let activeFilter = 'all'
+
+  async function loadCases() {
+    const loadingEl = document.getElementById('cases-loading')
+    const emptyEl   = document.getElementById('cases-empty')
+    const tableEl   = document.getElementById('cases-table')
+    try {
+      const { cases } = await api.get('/api/cases')
+      allCases = cases || []
+      if (loadingEl) loadingEl.hidden = true
+
+      const total  = allCases.length
+      const active = allCases.filter(c => c.status !== 'completed' && c.status !== 'submitted').length
+      const done   = allCases.filter(c => c.status === 'completed' || c.status === 'submitted').length
+      const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val }
+      el('stat-total', total); el('stat-active', active); el('stat-done', done)
+
+      window._lastCases = allCases
+      renderCases()
+    } catch(err) {
+      if (loadingEl) loadingEl.innerHTML = `<i class="ti ti-alert-circle"></i> ${err.message}`
+    }
+  }
+
+  function renderCases() {
+    const emptyEl = document.getElementById('cases-empty')
+    const tableEl = document.getElementById('cases-table')
+    const listEl  = document.getElementById('cases-list')
+
+    let filtered = allCases
+    if (activeFilter === 'active') filtered = allCases.filter(c => c.status !== 'completed' && c.status !== 'submitted')
+    else if (activeFilter === 'done') filtered = allCases.filter(c => c.status === 'completed' || c.status === 'submitted')
+
+    filtered = sortCases(filtered)
+    window._lastCases = filtered
+
+    if (filtered.length === 0) {
+      if (tableEl) tableEl.style.display = 'none'
+      if (emptyEl) { emptyEl.hidden = false; emptyEl.innerHTML = `<i class="ti ti-inbox"></i> ${activeFilter === 'all' ? 'Noch keine Fälle angelegt.' : 'Keine Fälle in dieser Kategorie.'}` }
+      return
+    }
+
+    if (emptyEl) emptyEl.hidden = true
+    if (tableEl) tableEl.style.display = 'table'
+    listEl.innerHTML = ''
+
+    filtered.forEach(c => {
+      const gutachtenType  = getGutachtenType(c)
+      const gutachtenLabel = TYPE_LABELS[gutachtenType] || '—'
+      const patientName    = abbreviateName(c.betroffener_name || c.patient_ref)
+
+      const statusMap = {
+        draft:       { label: 'Offen',       cls: 'badge-draft' },
+        in_progress: { label: 'Entwurf',     cls: 'badge-draft' },
+        completed:   { label: 'Abgeschl.',   cls: 'badge-active' },
+        submitted:   { label: 'Eingereicht', cls: 'badge-submitted' },
+      }
+      const st = statusMap[c.status] || statusMap.draft
+
+      let fristHtml = '<span style="color:var(--text-light);font-size:12px;">—</span>'
+      if (c.abgabefrist) {
+        const diff = Math.ceil((new Date(c.abgabefrist) - new Date()) / (1000 * 60 * 60 * 24))
+        const fristDate = new Date(c.abgabefrist).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' })
+        if (c.status === 'submitted') {
+          fristHtml = `<span style="color:var(--text-light);font-size:12px;">${fristDate}</span>`
+        } else if (diff < 0) {
+          fristHtml = `<span style="font-size:12px;font-weight:600;color:#fff;background:var(--error);padding:2px 7px;border-radius:10px;">Überschritten</span><div style="font-size:11px;color:var(--error);margin-top:2px;">${fristDate}</div>`
+        } else if (diff === 0) {
+          fristHtml = `<span style="font-size:12px;font-weight:600;color:#fff;background:var(--error);padding:2px 7px;border-radius:10px;">Heute</span>`
+        } else if (diff <= 3) {
+          fristHtml = `<span style="font-size:12px;font-weight:600;color:var(--error);">${diff}d</span><div style="font-size:11px;color:var(--text-light);">${fristDate}</div>`
+        } else if (diff <= 7) {
+          fristHtml = `<span style="font-size:12px;font-weight:600;color:#e65100;">${diff}d</span><div style="font-size:11px;color:var(--text-light);">${fristDate}</div>`
+        } else {
+          fristHtml = `<span style="font-size:12px;color:var(--text-mid);">${fristDate}</span>`
+        }
+      }
+
+      const beschlussHtml = c.beschlussdatum
+        ? `<span style="font-size:12px;color:var(--text-mid);">${new Date(c.beschlussdatum).toLocaleDateString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric' })}</span>`
+        : '<span style="color:var(--text-light);font-size:12px;">—</span>'
+
+      // Eingereicht date
+      const submittedHtml = c.submitted_at
+        ? `<span style="font-size:12px;color:var(--text-mid);">${formatDate(c.submitted_at)}</span>`
+        : '<span style="color:var(--text-light);font-size:12px;">—</span>'
+
+      const submitBtnHtml = c.status === 'submitted'
+        ? '<button class="btn btn-ghost btn-sm submit-case-btn" data-id="' + c.id + '" data-title="' + escapeHtml(c.title) + '" title="Als eingereicht markieren" disabled style="opacity:0.35;cursor:not-allowed;"><i class="ti ti-send"></i></button>'
+        : '<button class="btn btn-ghost btn-sm submit-case-btn" data-id="' + c.id + '" data-title="' + escapeHtml(c.title) + '" title="Als eingereicht markieren" style="color:#2e7d32;"><i class="ti ti-send"></i></button>'
+
+      const tr = document.createElement('tr')
+      tr.innerHTML = `
+        <td>
+          <a href="/dashboard-cases?id=${c.id}" class="case-row-title">${escapeHtml(c.title)}</a>
+          ${c.aktenzeichen ? `<div class="case-row-ref" style="font-family:monospace;font-size:11px;">${escapeHtml(c.aktenzeichen)}</div>` : ''}
+        </td>
+        <td>
+          ${gutachtenLabel !== '—'
+            ? `<span style="font-size:11px;font-weight:600;color:var(--navy);background:var(--cream);padding:2px 8px;border-radius:10px;white-space:nowrap;">${gutachtenLabel}</span>`
+            : `<span style="color:var(--text-light);font-size:12px;">—</span>`}
+        </td>
+        <td style="font-size:12px;color:var(--text-mid);white-space:nowrap;">${escapeHtml(patientName)}</td>
+        <td>${beschlussHtml}</td>
+        <td>${fristHtml}</td>
+        <td><span class="badge ${st.cls}">${st.label}</span></td>
+        <td>${submittedHtml}</td>
+        <td style="display:flex;gap:0.4rem;align-items:center;">
+          <a href="/dashboard-cases?id=${c.id}" class="btn btn-ghost btn-sm" title="Öffnen"><i class="ti ti-folder-open"></i></a>
+          ${submitBtnHtml}
+          <button class="btn btn-ghost btn-sm archive-case-btn" data-id="${c.id}" data-title="${escapeHtml(c.title)}" title="Fallarchiv per E-Mail"><i class="ti ti-mail-down"></i></button>
+          <button class="btn btn-ghost btn-sm delete-case-btn" data-id="${c.id}" data-title="${escapeHtml(c.title)}" style="color:var(--error);" title="Fall löschen"><i class="ti ti-trash"></i></button>
+        </td>
+      `
+      listEl.appendChild(tr)
+    })
+
+    listEl.querySelectorAll('.delete-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => showCaseDeleteConfirm(btn.dataset.id, btn.dataset.title))
+    })
+    listEl.querySelectorAll('.archive-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => archiveCase(btn.dataset.id, btn.dataset.title, btn))
+    })
+    listEl.querySelectorAll('.submit-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => showCaseSubmitConfirm(btn.dataset.id, btn.dataset.title))
+    })
+  }
+
+  await loadCases()
+
+  // ── Sort headers ──────────────────────────────────────────
+  document.querySelectorAll('th.sortable').forEach(th => {
+    th.addEventListener('click', () => {
+      const col = th.dataset.col
+      if (sortCol === col) sortDir = sortDir === 'asc' ? 'desc' : 'asc'
+      else { sortCol = col; sortDir = 'asc' }
+      updateSortIcons()
+      renderCases()
+    })
+  })
+
+  // ── Sidebar filter links ──────────────────────────────────
+  document.querySelectorAll('.sidebar-nav a[data-filter]').forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault()
+      activeFilter = link.dataset.filter
+      document.querySelectorAll('.sidebar-nav a[data-filter]').forEach(l => l.classList.remove('active'))
+      link.classList.add('active')
+      renderCases()
+    })
+  })
+
+  // ── Archive case ──────────────────────────────────────────
+  async function archiveCase(caseId, caseTitle, btn) {
+    const orig = btn.innerHTML
+    btn.disabled = true
+    btn.innerHTML = '<i class="ti ti-loader"></i>'
+    try {
+      await api.post(`/api/export-archive/${caseId}`, {})
+      const toast = document.createElement('div')
+      toast.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:#1a2640;color:#fff;padding:12px 18px;border-radius:6px;font-size:13px;display:flex;align-items:center;gap:10px;z-index:9999;box-shadow:0 8px 32px rgba(26,38,64,0.3);'
+      toast.innerHTML = '<i class="ti ti-mail-check" style="color:#b89a5e;font-size:16px;"></i> Archiv wird erstellt und an Ihre E-Mail gesendet.'
+      document.body.appendChild(toast)
+      setTimeout(() => toast.remove(), 5000)
+    } catch(err) {
+      const toast = document.createElement('div')
+      toast.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:var(--error);color:#fff;padding:12px 18px;border-radius:6px;font-size:13px;z-index:9999;'
+      toast.textContent = 'Fehler: ' + err.message
+      document.body.appendChild(toast)
+      setTimeout(() => toast.remove(), 5000)
+    }
+    btn.disabled = false
+    btn.innerHTML = orig
+  }
+
+  // ── Submit case ───────────────────────────────────────────
+  function showCaseSubmitConfirm(caseId, caseTitle) {
+    const overlay    = document.getElementById('case-submit-overlay')
+    const titleEl    = document.getElementById('case-submit-title')
+    const confirmBtn = document.getElementById('case-submit-confirm')
+    const cancelBtn  = document.getElementById('case-submit-cancel')
+    if (!overlay) return
+    if (titleEl) titleEl.textContent = caseTitle
+    overlay.style.display = 'flex'
+    const close = () => { overlay.style.display = 'none' }
+    const handleConfirm = async () => {
+      close()
+      confirmBtn.disabled = true
+      try { await api.post(`/api/cases/${caseId}/submit`, {}); await loadCases() }
+      catch(err) { alert(err.message) }
+      confirmBtn.disabled = false
+    }
+    confirmBtn.addEventListener('click', handleConfirm, { once: true })
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  // ── Delete case ───────────────────────────────────────────
+  function showCaseDeleteConfirm(caseId, caseTitle) {
+    const overlay    = document.getElementById('case-delete-overlay')
+    const titleEl    = document.getElementById('case-delete-title')
+    const confirmBtn = document.getElementById('case-delete-confirm')
+    const cancelBtn  = document.getElementById('case-delete-cancel')
+    if (!overlay) return
+    if (titleEl) titleEl.textContent = caseTitle
+    overlay.style.display = 'flex'
+    const close = () => { overlay.style.display = 'none' }
+    const handleConfirm = async () => {
+      close()
+      confirmBtn.disabled = true
+      try { await api.delete(`/api/cases/${caseId}`); await loadCases() }
+      catch(err) { alert(err.message) }
+      confirmBtn.disabled = false
+    }
+    confirmBtn.addEventListener('click', handleConfirm, { once: true })
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  // ── New case ──────────────────────────────────────────────
+  document.getElementById('new-case-btn')?.addEventListener('click', () => {
+    const form = document.getElementById('new-case-form')
+    if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none'
+  })
+  document.getElementById('cancel-new-case-btn')?.addEventListener('click', () => {
+    const form = document.getElementById('new-case-form')
+    if (form) form.style.display = 'none'
+  })
+  document.getElementById('create-case-btn')?.addEventListener('click', async () => {
+    const btn     = document.getElementById('create-case-btn')
+    const title   = document.getElementById('case-title-input')?.value.trim()
+    const ref     = document.getElementById('case-ref-input')?.value.trim()
+    const errorEl = document.getElementById('new-case-error')
+    if (!title) {
+      if (errorEl) { errorEl.querySelector('span').textContent = 'Bitte Fallbezeichnung eingeben.'; errorEl.hidden = false }
+      return
+    }
+    btn.disabled = true
+    btn.textContent = 'Erstelle...'
+    try {
+      const { case: newCase } = await api.post('/api/cases', { title, patient_ref: ref || title })
+      window.location.href = `/dashboard-cases?id=${newCase.id}`
+    } catch(err) {
+      if (errorEl) { errorEl.querySelector('span').textContent = err.message; errorEl.hidden = false }
+      btn.disabled = false
+      btn.textContent = 'Fall erstellen'
+    }
+  })
+
+  // ── Helpers ───────────────────────────────────────────────
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  }
+
+})()
+</script>

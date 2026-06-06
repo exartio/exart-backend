@@ -1,0 +1,97 @@
+<!-- NAV -->
+<nav class="nav">
+  <a href="/" class="nav-logo">
+    <span class="nav-logo-mark">exart</span>
+    <span class="nav-logo-sub">.io</span>
+  </a>
+  <div class="nav-links">
+    <a href="/#so-funktioniert-es">So funktioniert es</a>
+    <a href="/#datenschutz">Datenschutz</a>
+    <a href="/#preise">Preise</a>
+    <a href="/#kontakt">Kontakt</a>
+    <button class="nav-cta" onclick="window.location.href='/login'">Zugang anfragen</button>
+  </div>
+</nav>
+
+<!-- DEMO HERO -->
+<section style="background:var(--navy);padding:4rem 2rem 3rem;text-align:center;position:relative;overflow:hidden;">
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse 60% 50% at 50% 0%, rgba(184,154,94,0.08) 0%, transparent 70%);pointer-events:none;"></div>
+  <div style="position:relative;z-index:1;max-width:680px;margin:0 auto;">
+    <p style="font-family:var(--sans);font-size:11px;font-weight:500;letter-spacing:0.2em;text-transform:uppercase;color:var(--gold);margin-bottom:1rem;">Demonstration</p>
+    <h1 style="font-family:var(--heading-serif);font-size:clamp(1.75rem,4vw,2.75rem);font-weight:500;color:#fff;line-height:1.2;letter-spacing:-0.02em;margin-bottom:1rem;">exart.io in der Praxis</h1>
+    <p style="font-family:var(--body-serif);font-size:1rem;font-weight:300;color:rgba(255,255,255,0.6);font-style:italic;margin-bottom:0;">Sehen Sie, wie ein Betreuungsgutachten in wenigen Schritten erstellt wird.</p>
+  </div>
+</section>
+
+<!-- VIDEO EMBED -->
+<section style="background:#fff;padding:3rem 2rem;">
+  <div style="max-width:800px;margin:0 auto;">
+
+    <!-- YouTube embed — replace VIDEO_ID with actual ID once recorded -->
+    <div style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;box-shadow:0 20px 60px rgba(26,38,64,0.15);background:var(--navy);">
+      <iframe
+        style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
+        src="https://www.youtube.com/embed/xvFZjo5PgG0?rel=0&modestbranding=1&color=white&autoplay=1&mute=1"
+        title="exart.io — Demonstration"
+        allowfullscreen
+        loading="lazy">
+      </iframe>
+    </div>
+
+    <!-- Placeholder shown until video is recorded -->
+    <div id="video-placeholder" style="position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:8px;box-shadow:0 20px 60px rgba(26,38,64,0.15);background:var(--navy);display:none;">
+      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1rem;">
+        <div style="width:64px;height:64px;border-radius:50%;background:rgba(184,154,94,0.15);border:1px solid rgba(184,154,94,0.3);display:flex;align-items:center;justify-content:center;">
+          <i class="ti ti-player-play" style="color:var(--gold);font-size:28px;"></i>
+        </div>
+        <p style="font-family:var(--sans);font-size:14px;color:rgba(255,255,255,0.5);">Einführungsvideo folgt in Kürze</p>
+        <a href="https://www.youtube.com/@exartio" target="_blank" style="font-family:var(--sans);font-size:12px;color:var(--gold);text-decoration:none;">@exartio auf YouTube →</a>
+      </div>
+    </div>
+
+    <!-- Video description -->
+    <div style="margin-top:2.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.5rem;">
+      <div style="text-align:center;">
+        <div style="font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem;">Schritt 1</div>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--text-mid);line-height:1.5;">Gerichtsbeschluss einlesen &amp; Beweisfragen extrahieren</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem;">Schritt 2</div>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--text-mid);line-height:1.5;">Falldokumentation hochladen &amp; Befunde erfassen</div>
+      </div>
+      <div style="text-align:center;">
+        <div style="font-family:var(--sans);font-size:11px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:0.5rem;">Schritt 3</div>
+        <div style="font-family:var(--sans);font-size:13px;color:var(--text-mid);line-height:1.5;">Gutachten generieren, prüfen &amp; exportieren</div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- CTA -->
+<section style="background:var(--cream);padding:3rem 2rem;text-align:center;border-top:1px solid var(--border-light);">
+  <div style="max-width:520px;margin:0 auto;">
+    <h2 style="font-family:var(--heading-serif);font-size:1.75rem;font-weight:500;color:var(--navy);margin-bottom:0.75rem;">Bereit zum Einstieg?</h2>
+    <p style="font-family:var(--body-serif);font-size:14.5px;font-weight:300;color:var(--text-mid);margin-bottom:2rem;line-height:1.7;">Fordern Sie Ihren Zugang an — ausschließlich für approbierte Ärztinnen und Ärzte.</p>
+    <div style="display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;">
+      <button class="btn-lp-primary" onclick="window.location.href='/login'">Zugang anfragen</button>
+      <button class="btn-lp-secondary" onclick="window.location.href='/#preise'">Tarife ansehen</button>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="footer" id="kontakt">
+  <div class="footer-inner">
+    <div class="footer-logo">exart.io</div>
+    <div class="footer-links">
+      <a href="/impressum">Impressum</a>
+      <a href="/datenschutz">Datenschutzerklärung</a>
+      <a href="/nutzungsbedingungen">Nutzungsbedingungen</a>
+      <a href="/sicherheit">Sicherheit</a>
+      <a href="/ki-transparenz">KI-Transparenzhinweis</a>
+      <a href="mailto:kontakt@exart.io">Kontakt</a>
+    </div>
+    <p class="footer-copy">&copy; 2026 K. Schlaaff &middot; Alle Rechte vorbehalten</p>
+  </div>
+</footer>

@@ -1,0 +1,163 @@
+<script>
+(async function () {
+  const session = await requireAuth()
+  if (!session) return
+  renderSidebar('icd')
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Load ICD-10-GM JSON ───────────────────────────────────────
+  // Hosted in exartio/exart-backend repo at /public/icd10gm.json
+  // After pushing the file to GitHub, purge jsDelivr cache once at:
+  // https://www.jsdelivr.com/tools/purge  →  paste the URL below
+  const ICD_URL = 'https://cdn.jsdelivr.net/gh/exartio/exart-backend@main/public/icd10gm.json'
+
+  let icdData = []
+  let searchTimer = null
+  const searchEl  = document.getElementById('icd-search')
+  const resultsEl = document.getElementById('icd-results')
+  const emptyEl   = document.getElementById('icd-empty')
+  const hintEl    = document.getElementById('icd-hint')
+  const loadingEl = document.getElementById('icd-loading')
+  const statsEl   = document.getElementById('icd-stats')
+  const clearBtn  = document.getElementById('icd-clear')
+
+  // Load data
+  loadingEl.style.display = 'block'
+  try {
+    const res = await fetch(ICD_URL)
+    if (!res.ok) throw new Error('HTTP ' + res.status + ' – Datei nicht gefunden. Bitte sicherstellen, dass icd10gm.json im Repo liegt.')
+    const text = await res.text()
+    const trimmed = text.trim()
+    if (!trimmed.startsWith('[')) throw new Error('Ungültiges Datenformat (erwartet JSON-Array)')
+    const raw = JSON.parse(trimmed)
+    if (!Array.isArray(raw)) throw new Error('Ungültiges Datenformat')
+    icdData = raw
+      .map(entry => ({
+        code:  String(entry.code  || '').trim().toUpperCase(),
+        label: String(entry.label || entry.klassentitel || entry.bezeichnung || entry.description || '').trim(),
+        type:  String(entry.type  || entry.klassenart  || ''),
+      }))
+      .filter(e => e.code && e.label && /^[A-Z][0-9]/.test(e.code))
+    statsEl.textContent = icdData.length.toLocaleString('de-DE') + ' Einträge geladen · ICD-10-GM 2025'
+  } catch(err) {
+    statsEl.textContent = 'Fehler beim Laden: ' + err.message
+    statsEl.style.color = 'var(--error)'
+    console.error('[ICD] Load error:', err)
+  }
+  loadingEl.style.display = 'none'
+
+  // ── Search ────────────────────────────────────────────────────
+  function search(query) {
+    query = query.trim()
+    clearBtn.style.display = query ? 'inline-flex' : 'none'
+    if (!query || query.length < 2) {
+      resultsEl.innerHTML = ''
+      emptyEl.style.display = 'none'
+      hintEl.style.display = 'block'
+      return
+    }
+    hintEl.style.display = 'none'
+    const q = query.toUpperCase()
+    const isCode = /^[A-Z][0-9]/.test(q)
+    let results
+    if (isCode) {
+      results = icdData.filter(e => e.code.startsWith(q))
+      const labelMatches = icdData.filter(e =>
+        !e.code.startsWith(q) && e.label.toLowerCase().includes(query.toLowerCase())
+      )
+      results = [...results, ...labelMatches]
+    } else {
+      const words = query.toLowerCase().split(/\s+/).filter(Boolean)
+      results = icdData.filter(e =>
+        words.every(w => e.label.toLowerCase().includes(w) || e.code.toLowerCase().includes(w))
+      )
+    }
+    results = results.slice(0, 50)
+    if (results.length === 0) {
+      resultsEl.innerHTML = ''
+      emptyEl.style.display = 'block'
+      return
+    }
+    emptyEl.style.display = 'none'
+    const typeLabels = { 'K': 'Kategorie', 'S': 'Schlüsselnummer', 'P': 'Pseudoklasse', '': '' }
+    resultsEl.innerHTML =
+      '<div style="font-size:11px;color:var(--text-light);margin-bottom:0.75rem;">' +
+        (results.length === 50 ? 'Top 50 von mehr Ergebnissen' : results.length + ' Ergebnis' + (results.length !== 1 ? 'se' : '')) +
+      '</div>' +
+      '<div style="display:flex;flex-direction:column;gap:0.5rem;">' +
+        results.map(r => {
+          const typeLabel = typeLabels[r.type] || ''
+          const highlighted = highlightMatch(r.label, query)
+          return '<div style="background:#fff;border:1px solid var(--border-light);border-radius:6px;padding:0.875rem 1.25rem;display:flex;align-items:flex-start;gap:1rem;cursor:pointer;"' +
+            ' data-icd-code="' + r.code + '" title="Code kopieren">' +
+            '<div style="flex-shrink:0;min-width:80px;">' +
+              '<span style="font-family:var(--mono,\'Courier New\',monospace);font-size:14px;font-weight:700;color:var(--navy);letter-spacing:0.04em;">' + r.code + '</span>' +
+              (typeLabel ? '<div style="font-size:10px;color:var(--text-light);margin-top:2px;">' + typeLabel + '</div>' : '') +
+            '</div>' +
+            '<div style="flex:1;"><div style="font-size:13px;color:var(--text-mid);line-height:1.5;">' + highlighted + '</div></div>' +
+            '<div style="flex-shrink:0;opacity:0;transition:opacity 0.15s;" class="copy-hint">' +
+              '<i class="ti ti-copy" style="font-size:14px;color:var(--text-light);"></i>' +
+            '</div></div>'
+        }).join('') +
+      '</div>'
+
+    // Attach handlers via JS — no inline onclick
+    resultsEl.querySelectorAll('[data-icd-code]').forEach(function(el) {
+      var hint = el.querySelector('.copy-hint')
+      el.addEventListener('click', function() { copyIcdCode(el.getAttribute('data-icd-code')) })
+      el.addEventListener('mouseenter', function() { if (hint) hint.style.opacity = '1' })
+      el.addEventListener('mouseleave', function() { if (hint) hint.style.opacity = '0' })
+    })
+  }
+
+  function highlightMatch(text, query) {
+    if (!query || query.length < 2) return esc(text)
+    var words = query.split(/\s+/).filter(function(w) { return w.length >= 2 })
+    // Use placeholder chars to mark matches before HTML-escaping
+    var OPEN = '\x01', CLOSE = '\x02'
+    var result = text
+    words.forEach(function(word) {
+      var safe = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      result = result.replace(new RegExp(safe, 'gi'), function(m) { return OPEN + m + CLOSE })
+    })
+    return result.split(OPEN).map(function(seg, i) {
+      if (i === 0) return esc(seg)
+      var parts = seg.split(CLOSE)
+      return '<mark style="background:rgba(184,154,94,0.25);border-radius:2px;padding:0 1px;">' +
+        esc(parts[0]) + '</mark>' + esc(parts[1] || '')
+    }).join('')
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/[&<>"']/g, function(c) {
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]
+    })
+  }
+
+  function copyIcdCode(code) {
+    navigator.clipboard?.writeText(code).then(function() {
+      var toast = document.createElement('div')
+      toast.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:#1a2640;color:#fff;padding:10px 16px;border-radius:5px;font-size:13px;display:flex;align-items:center;gap:8px;z-index:9999;box-shadow:0 4px 20px rgba(26,38,64,0.25);'
+      toast.innerHTML = '<i class="ti ti-clipboard-check" style="color:#b89a5e;"></i> ' + code + ' kopiert'
+      document.body.appendChild(toast)
+      setTimeout(function() { toast.remove() }, 2500)
+    })
+  }
+
+  // Debounced input
+  searchEl?.addEventListener('input', function(e) {
+    clearTimeout(searchTimer)
+    searchTimer = setTimeout(function() { search(e.target.value) }, 200)
+  })
+  clearBtn?.addEventListener('click', function() {
+    if (searchEl) { searchEl.value = ''; searchEl.focus() }
+    search('')
+  })
+  searchEl?.focus()
+})()
+</script>

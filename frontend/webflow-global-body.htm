@@ -1,0 +1,74 @@
+<script>
+
+// ── Sidebar renderer ──────────────────────────────────────────────────────────
+// Call renderSidebar('page_key') on every dashboard page
+// Page keys: dashboard, vorgutachten, vorlagen, abrechnung,
+//            profil, verifizierung, abonnement, sicherheit, dokument,
+//            organisation, begutachtung, betreuung, unterbringung, zwangsmassnahmen
+
+function renderSidebar(activePage) {
+  const el = document.getElementById('sidebar-mount')
+  if (!el) return
+
+  const link = (label, href, page, icon, extra = '') =>
+    `<li><a href="${href}"${activePage === page ? ' class="active"' : ''}${extra}><i class="ti ti-${icon}"></i> ${label}</a></li>`
+
+  el.innerHTML = `
+    <p class="sidebar-section-label">Gutachten</p>
+    <ul class="sidebar-nav">
+      <li><a href="/dashboard" data-filter="all"${activePage === 'dashboard' ? ' class="active"' : ''}><i class="ti ti-files"></i>Übersicht</a></li>
+    </ul>
+    <p class="sidebar-section-label" style="margin-top:1.5rem;">Ressourcen</p>
+    <ul class="sidebar-nav">
+      ${link('Vorgutachten', '/dashboard-vorgutachten', 'vorgutachten', 'file-upload')}
+      ${link('ICD-10-Helfer', '/dashboard-icd', 'icd', 'stethoscope')}
+      ${link('Vorlagen', '/dashboard-vorlagen', 'vorlagen', 'template')}
+      ${link('Abrechnung', '/dashboard-abrechnung', 'abrechnung', 'receipt')}
+    </ul>
+    <p class="sidebar-section-label" style="margin-top:1.5rem;">Einstellungen</p>
+    <ul class="sidebar-nav">
+      ${link('Profil', '/dashboard-settings', 'profil', 'user')}
+      ${link('Organisation', '/dashboard-organisation', 'organisation', 'building')}
+      ${link('Dokument', '/dashboard-dokument', 'dokument', 'file-text')}
+    </ul>
+    <p class="sidebar-section-label" style="margin-top:1.5rem;">BGB Suite</p>
+    <ul class="sidebar-nav">
+      ${link('Betreuung', '/dashboard-leitfaden-betreuung', 'betreuung', 'users')}
+      ${link('Unterbringung', '/dashboard-leitfaden-unterbringung', 'unterbringung', 'building-hospital')}
+      ${link('Zwangsmaßnahmen', '/dashboard-leitfaden-zwangsmassnahmen', 'zwangsmassnahmen', 'shield-exclamation')}
+    </ul>
+	<p class="sidebar-section-label" style="margin-top:1.5rem;">SGB XII Suite</p>
+    <ul class="sidebar-nav">
+      ${link('...in Entwicklung...', '/dashboard-sgbxii', 'sgbxii', 'clipboard-text')}
+    </ul>
+	<p class="sidebar-section-label" style="margin-top:1.5rem;">PsychKHG Suite</p>
+    <ul class="sidebar-nav">
+      ${link('...in Entwicklung...', '/dashboard-psychkhg', 'psychkhg', 'clipboard-text')}
+    </ul>
+	<p class="sidebar-section-label" style="margin-top:1.5rem;">Forensik Suite</p>
+	<ul class="sidebar-nav">
+      ${link('...in Entwicklung...', '/dashboard-forensik', 'forensik', 'clipboard-text')}
+    </ul>
+  `
+}
+
+// ── Role restrictions ─────────────────────────────────────────────────────────
+async function applyRoleRestrictions() {
+  try {
+    const ctx = await getOrgContext()
+    const role = ctx?.role || 'sachverstaendige'
+    if (role === 'assistent') {
+      const restrictedIds = ['generate-btn', 'export-docx-btn', 'export-pdf-btn']
+      restrictedIds.forEach(id => {
+        const el = document.getElementById(id)
+        if (el) {
+          el.disabled = true
+          el.title = 'Nicht autorisiert'
+          el.style.opacity = '0.4'
+          el.style.cursor = 'not-allowed'
+        }
+      })
+    }
+  } catch(e) {}
+}
+</script>

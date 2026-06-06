@@ -1,0 +1,193 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]))
+  }
+
+  if (typeof renderSidebar === 'function') renderSidebar('organisation')
+
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  await showDemoBannerIfNeeded()
+
+  // ── Load org name ─────────────────────────────────────────────
+  try {
+    const { org } = await api.get('/api/orgs/me')
+    if (org?.name) {
+      const titleEl = document.getElementById('org-name-title')
+      if (titleEl) titleEl.textContent = org.name
+    }
+  } catch(e) {}
+
+  // ── Load members ──────────────────────────────────────────────
+  const loadingEl   = document.getElementById('members-loading')
+  const tableWrap   = document.getElementById('members-table-wrap')
+  const emptyEl     = document.getElementById('members-empty')
+  const tbody       = document.getElementById('members-tbody')
+  const countEl     = document.getElementById('member-count')
+
+  const roleLabels = {
+    sachverstaendige: 'Sachverständige/r',
+    assistent:        'Assistent/in',
+    owner:            'Sachverständige/r',
+  }
+
+  const verifyBadge = (status) => {
+    if (status === 'verified') {
+      return `<span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:#2e7d32;background:rgba(46,125,50,0.08);padding:2px 8px;border-radius:10px;">
+        <i class="ti ti-circle-check" style="font-size:11px;"></i> Verifiziert
+      </span>`
+    }
+    if (status === 'pending') {
+      return `<span style="font-size:11px;font-weight:600;color:#e65100;background:rgba(230,81,0,0.08);padding:2px 8px;border-radius:10px;">Ausstehend</span>`
+    }
+    return `<span style="font-size:11px;color:var(--text-light);">—</span>`
+  }
+
+  try {
+    const { members } = await api.get('/api/orgs/members')
+
+    if (loadingEl) loadingEl.style.display = 'none'
+
+    if (!members || members.length === 0) {
+      if (emptyEl) emptyEl.style.display = 'block'
+      return
+    }
+
+    if (countEl) countEl.textContent = `${members.length} Mitglied${members.length !== 1 ? 'er' : ''}`
+    if (tableWrap) tableWrap.style.display = 'block'
+
+    tbody.innerHTML = ''
+    members.forEach((m, i) => {
+      const tr = document.createElement('tr')
+      tr.style.cssText = `border-bottom:1px solid var(--border-light);${i % 2 === 1 ? 'background:var(--cream);' : ''}`
+      tr.innerHTML = `
+        <td style="padding:10px 12px 10px 0;">
+          <div style="font-weight:500;color:var(--navy);">${escapeHtml(m.full_name || '—')}</div>
+        </td>
+        <td style="padding:10px 12px;">
+          <div style="color:var(--text-mid);">${escapeHtml(m.email || '—')}</div>
+        </td>
+        <td style="padding:10px 12px;color:var(--text-mid);font-size:13px;">${roleLabels[m.role] || m.role || '—'}</td>
+        <td style="padding:10px 12px;color:var(--text-mid);font-size:12px;">${formatDate(m.registered_at)}</td>
+        <td style="padding:10px 12px;">${verifyBadge(m.verification_status)}</td>
+      `
+      tbody.appendChild(tr)
+    })
+
+  } catch(err) {
+    if (loadingEl) loadingEl.textContent = 'Fehler beim Laden der Mitglieder.'
+    console.error('Failed to load members:', err)
+  }
+
+
+  // ── Plan limits display ───────────────────────────────────────
+  const planLimits = {
+    none:          { sachverstaendige: 1, assistent: 0 },
+    unit:          { sachverstaendige: 1, assistent: 0 },
+    solo:          { sachverstaendige: 1, assistent: 1 },
+    solo_yearly:   { sachverstaendige: 1, assistent: 1 },
+    expert:        { sachverstaendige: 2, assistent: 2 },
+    expert_yearly: { sachverstaendige: 2, assistent: 2 },
+    institution:   { sachverstaendige: null, assistent: null },
+  }
+
+  const planNames = {
+    none: 'Kein Plan', unit: 'Einzelgutachten',
+    solo: 'Solo-Lizenz', solo_yearly: 'Solo-Lizenz (jährlich)',
+    expert: 'Expert-Lizenz', expert_yearly: 'Expert-Lizenz (jährlich)',
+    institution: 'Institution',
+  }
+
+  try {
+    const sub = await api.get('/api/subscriptions/me')
+    const plan = sub.plan_key || 'none'
+    const limits = planLimits[plan] || planLimits.none
+    const infoEl = document.getElementById('plan-limits-info')
+    if (infoEl) {
+      const svLimit  = limits.sachverstaendige === null ? 'unbegrenzt' : limits.sachverstaendige
+      const assLimit = limits.assistent === null ? 'unbegrenzt' : limits.assistent
+      infoEl.innerHTML = `
+        <strong style="color:var(--navy);">${planNames[plan]}</strong> —
+        max. ${svLimit} Sachverständige/r · max. ${assLimit} Assistent/in
+        ${plan === 'solo' || plan === 'solo_yearly' || plan === 'none' || plan === 'unit'
+          ? ' · <a href="/dashboard-settings#abonnement" style="color:var(--navy);">Upgrade für mehr Mitglieder</a>'
+          : ''}
+      `
+    }
+  } catch(e) {}
+
+  // ── Load pending invitations ──────────────────────────────────
+  async function loadPendingInvites() {
+    try {
+      const { invitations } = await api.get('/api/invitations/pending')
+      const card    = document.getElementById('pending-card')
+      const listEl  = document.getElementById('pending-list')
+      if (!card || !listEl) return
+      if (!invitations || invitations.length === 0) { card.style.display = 'none'; return }
+      card.style.display = 'block'
+      const roleLabels = { sachverstaendige: 'Sachverständige/r', assistent: 'Assistent/in' }
+      listEl.innerHTML = invitations.map(inv => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-light);font-size:13px;">
+          <div>
+            <span style="color:var(--navy);font-weight:500;">${escapeHtml(inv.email)}</span>
+            <span style="margin-left:0.5rem;font-size:11px;font-weight:600;color:var(--gold);background:var(--cream);padding:2px 8px;border-radius:10px;">${roleLabels[inv.role] || inv.role}</span>
+          </div>
+          <span style="font-size:11px;color:var(--text-light);">Gesendet ${formatDate(inv.created_at)} · läuft ab ${formatDate(inv.expires_at)}</span>
+        </div>
+      `).join('')
+    } catch(e) {}
+  }
+
+  await loadPendingInvites()
+
+  // ── Send invitation ───────────────────────────────────────────
+  document.getElementById('invite-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('invite-btn')
+    const emailEl  = document.getElementById('invite-email')
+    const roleEl   = document.getElementById('invite-role')
+    const statusEl = document.getElementById('invite-status')
+    const email    = emailEl?.value.trim()
+    const role     = roleEl?.value || 'sachverstaendige'
+
+    if (!email) { emailEl?.focus(); return }
+
+    btn.disabled = true
+    btn.innerHTML = '<i class="ti ti-loader"></i> Wird gesendet…'
+
+    try {
+      await api.post('/api/invitations/send', { email, role })
+      statusEl.hidden = false
+      statusEl.className = 'msg msg-success'
+      statusEl.innerHTML = `<i class="ti ti-circle-check"></i> Einladung gesendet an <strong>${escapeHtml(email)}</strong>. Der Nutzer muss die Einladung per E-Mail bestätigen.`
+      if (emailEl) emailEl.value = ''
+      await loadPendingInvites()
+    } catch(err) {
+      statusEl.hidden = false
+      statusEl.className = 'msg msg-error'
+      statusEl.innerHTML = `<i class="ti ti-alert-circle"></i> ${escapeHtml(err.message)}`
+    }
+
+    btn.disabled = false
+    btn.innerHTML = '<i class="ti ti-send"></i> Einladung senden'
+  })
+
+  document.getElementById('invite-email')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('invite-btn')?.click()
+  })
+
+
+
+})()
+</script>

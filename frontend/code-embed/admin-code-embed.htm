@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>exart.io — Admin</title>
+  <style>
+:root {
+  --navy:   #1a2640;
+  --gold:   #b89a5e;
+  --cream:  #f7f4ef;
+  --mid:    #4a5568;
+  --light:  #7a8a9a;
+  --border: rgba(26,38,64,0.1);
+  --green:  #2e7d32;
+  --red:    #c62828;
+  --orange: #e65100;
+  --bg:     #f0f2f5;
+  --sans:   'DM Sans', system-ui, sans-serif;
+  --serif:  'Playfair Display', Georgia, serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); font-family: var(--sans); font-size: 13px; color: var(--mid); min-height: 100vh; }
+/* ── Login ── */
+#login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--navy); }
+.login-box { background: #fff; border-radius: 8px; padding: 2.5rem; width: 340px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+.login-logo { font-family: var(--serif); font-size: 22px; font-weight: 600; color: var(--navy); margin-bottom: 0.25rem; }
+.login-logo sup { font-family: var(--sans); font-size: 9px; color: var(--gold); letter-spacing: 0.1em; vertical-align: super; }
+.login-sub { font-size: 11px; color: var(--light); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 1.5rem; }
+.login-box input { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 4px; font-size: 13px; margin-bottom: 0.75rem; outline: none; font-family: var(--sans); }
+.login-box input:focus { border-color: var(--navy); }
+.login-btn { width: 100%; background: var(--navy); color: #fff; border: none; border-radius: 4px; padding: 11px; font-size: 13px; font-weight: 500; cursor: pointer; font-family: var(--sans); }
+.login-btn:hover { background: #243350; }
+#login-error { color: var(--red); font-size: 12px; margin-top: 0.5rem; display: none; }
+/* ── Dashboard ── */
+#dashboard { display: none; }
+/* ── Alert banner ── */
+#alert-banner { background: var(--red); color: #fff; padding: 8px 2rem; font-size: 12px; font-weight: 500; display: none; }
+nav { background: var(--navy); padding: 0 2rem; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.nav-logo { font-family: var(--serif); font-size: 17px; font-weight: 600; color: #fff; }
+.nav-logo sup { font-family: var(--sans); font-size: 8px; color: var(--gold); letter-spacing: 0.1em; vertical-align: super; }
+.nav-right { display: flex; align-items: center; gap: 1rem; }
+.nav-badge { background: rgba(184,154,94,0.15); color: var(--gold); border: 1px solid rgba(184,154,94,0.3); padding: 3px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; }
+#last-updated { font-size: 11px; color: rgba(255,255,255,0.35); }
+.refresh-btn { background: rgba(255,255,255,0.08); border: none; color: rgba(255,255,255,0.6); padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; font-family: var(--sans); }
+.refresh-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.content { padding: 1.5rem 2rem; max-width: 1400px; margin: 0 auto; }
+.section-title { font-size: 10px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase; color: var(--light); margin: 1.75rem 0 0.75rem; }
+/* ── Grid ── */
+.grid { display: grid; gap: 1rem; }
+.g2 { grid-template-columns: repeat(2, 1fr); }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+.g5 { grid-template-columns: repeat(5, 1fr); }
+.g6 { grid-template-columns: repeat(6, 1fr); }
+/* ── Card ── */
+.card { background: #fff; border-radius: 6px; padding: 1.25rem 1.5rem; border: 1px solid var(--border); }
+.card-label { font-size: 10px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--light); margin-bottom: 0.5rem; }
+.card-value { font-size: 28px; font-weight: 700; color: var(--navy); line-height: 1; margin-bottom: 0.35rem; }
+.card-sub { font-size: 11px; color: var(--light); line-height: 1.6; }
+.card-gold .card-value { color: var(--gold); }
+.card-green .card-value { color: var(--green); }
+.card-warn { border-color: rgba(230,81,0,0.3); background: rgba(230,81,0,0.03); }
+.card-warn .card-value { color: var(--orange); }
+.card-err { border-color: rgba(198,40,40,0.3); background: rgba(198,40,40,0.03); }
+.card-err .card-value { color: var(--red); }
+/* ── Uptime ── */
+.uptime-card { background: #fff; border-radius: 6px; padding: 1rem 1.25rem; border: 1px solid var(--border); display: flex; align-items: center; gap: 1rem; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; transition: background 0.3s; }
+.dot.up       { background: var(--green); box-shadow: 0 0 6px rgba(46,125,50,0.4); }
+.dot.down     { background: var(--red);   box-shadow: 0 0 6px rgba(198,40,40,0.4); }
+.dot.degraded { background: var(--orange); }
+.dot.loading  { background: #ccc; }
+.uptime-label { font-weight: 600; color: var(--navy); font-size: 12px; }
+.uptime-meta  { font-size: 11px; color: var(--light); margin-top: 2px; }
+.uptime-badge { margin-left: auto; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; }
+.uptime-badge.up       { background: rgba(46,125,50,0.1);  color: var(--green); }
+.uptime-badge.down     { background: rgba(198,40,40,0.1);  color: var(--red);   }
+.uptime-badge.degraded { background: rgba(230,81,0,0.1);   color: var(--orange);}
+.uptime-badge.loading  { background: #f0f0f0; color: #aaa; }
+/* ── Funnel ── */
+.funnel { display: flex; align-items: stretch; gap: 0; }
+.funnel-step { flex: 1; background: #fff; border: 1px solid var(--border); padding: 1rem 1.25rem; position: relative; }
+.funnel-step:not(:first-child) { border-left: none; }
+.funnel-step:first-child { border-radius: 6px 0 0 6px; }
+.funnel-step:last-child { border-radius: 0 6px 6px 0; }
+.funnel-num { font-size: 22px; font-weight: 700; color: var(--navy); line-height: 1; margin-bottom: 3px; }
+.funnel-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--light); }
+.funnel-pct { font-size: 11px; color: var(--gold); margin-top: 4px; font-weight: 600; }
+.funnel-arrow { position: absolute; right: -8px; top: 50%; transform: translateY(-50%); background: var(--bg); width: 16px; height: 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--light); z-index: 1; border: 1px solid var(--border); }
+/* ── Plan breakdown ── */
+.plan-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.plan-row:last-child { border-bottom: none; }
+.plan-tag { font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: var(--cream); color: var(--navy); }
+/* ── Type bars ── */
+.type-bar { display: flex; flex-direction: column; gap: 0.6rem; margin-top: 0.75rem; }
+.type-row { display: flex; align-items: center; gap: 0.75rem; font-size: 11px; }
+.type-fill { height: 6px; border-radius: 3px; min-width: 4px; }
+.type-name { color: var(--mid); flex-shrink: 0; width: 140px; }
+.type-pct  { color: var(--light); margin-left: 4px; }
+.type-count { color: var(--navy); font-weight: 600; margin-left: auto; flex-shrink: 0; }
+/* ── Health list ── */
+.health-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid var(--border); font-size: 12px; }
+.health-row:last-child { border-bottom: none; }
+.health-val { font-weight: 600; }
+.health-val.ok   { color: var(--green); }
+.health-val.warn { color: var(--orange); }
+.health-val.err  { color: var(--red); }
+/* ── Pending verifications list ── */
+.verif-list { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.verif-item { display: flex; align-items: center; gap: 1rem; padding: 10px 14px; background: var(--cream); border-radius: 5px; border: 1px solid var(--border); font-size: 12px; }
+.verif-item-name { font-weight: 600; color: var(--navy); min-width: 160px; }
+.verif-item-org  { color: var(--light); min-width: 120px; }
+.verif-item-type { color: var(--mid); min-width: 140px; }
+.verif-item-date { color: var(--light); min-width: 80px; }
+.verif-item-links { margin-left: auto; display: flex; gap: 0.5rem; flex-shrink: 0; }
+.verif-link { font-size: 11px; font-weight: 500; padding: 4px 10px; border-radius: 3px; text-decoration: none; display: inline-block; cursor: pointer; }
+.verif-link-doc     { background: var(--navy); color: #fff; }
+.verif-link-approve { background: rgba(46,125,50,0.1); color: var(--green); border: 1px solid rgba(46,125,50,0.2); }
+.verif-empty { font-size: 12px; color: var(--light); padding: 0.75rem 0; }
+/* ── Footer ── */
+.dash-footer { text-align: center; padding: 2rem 0 1rem; font-size: 11px; color: var(--light); }
+@media (max-width: 1100px) {
+  .g5, .g6 { grid-template-columns: repeat(3, 1fr); }
+  .g4 { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 700px) {
+  .g2, .g3, .g4, .g5, .g6 { grid-template-columns: 1fr; }
+  .funnel { flex-direction: column; }
+  .funnel-step { border-left: 1px solid var(--border) !important; }
+  .funnel-step:first-child { border-radius: 6px 6px 0 0; }
+  .funnel-step:last-child { border-radius: 0 0 6px 6px; }
+  .verif-item { flex-wrap: wrap; }
+}
+  </style>
+</head>
+<body>
+  <!--  Login  -->
+  <div id="login-screen">
+    <div class="login-box">
+      <div class="login-logo">exart<sup>.io</sup></div>
+      <div class="login-sub">Admin Dashboard</div>
+      <input type="password" id="admin-key" placeholder="Admin-Schlüssel" autocomplete="off">
+      <button class="login-btn" onclick="doLogin()">Anmelden</button>
+      <div id="login-error">Falscher Schlüssel oder Verbindungsfehler.</div>
+    </div>
+  </div>
+  <!--  Dashboard  -->
+  <div id="dashboard">
+    <div id="alert-banner"></div>
+    <nav>
+      <span class="nav-logo">exart<sup>.io</sup></span>
+      <div class="nav-right">
+        <span class="nav-badge">Admin</span>
+        <span id="last-updated">—</span>
+        <button class="refresh-btn" onclick="loadMetrics()">↺ Aktualisieren</button>
+      </div>
+    </nav>
+    <div class="content">
+      <!--  1. Systemstatus  -->
+      <div class="section-title">Systemstatus</div>
+      <div class="grid g3" id="uptime-grid">
+        <div class="uptime-card">
+          <div class="dot loading" id="dot-backend"></div>
+          <div><div class="uptime-label">Backend (Render)</div><div class="uptime-meta" id="meta-backend">Wird geprüft…</div></div>
+          <span class="uptime-badge loading" id="badge-backend">—</span>
+        </div>
+        <div class="uptime-card">
+          <div class="dot loading" id="dot-frontend"></div>
+          <div><div class="uptime-label">Frontend (Webflow)</div><div class="uptime-meta" id="meta-frontend">Wird geprüft…</div></div>
+          <span class="uptime-badge loading" id="badge-frontend">—</span>
+        </div>
+        <div class="uptime-card">
+          <div class="dot loading" id="dot-database"></div>
+          <div><div class="uptime-label">Datenbank (Supabase)</div><div class="uptime-meta" id="meta-database">Wird geprüft…</div></div>
+          <span class="uptime-badge loading" id="badge-database">—</span>
+        </div>
+      </div>
+      <!--  2. Systemgesundheit  -->
+      <div class="section-title">Systemgesundheit</div>
+      <div class="grid g4">
+        <div class="card" id="card-stuck">
+          <div class="card-label">Hängende Verarbeitungen</div>
+          <div class="card-value" id="stuck-docs">—</div>
+          <div class="card-sub">Dokumente > 10 Min im Status "Verarbeitung"</div>
+        </div>
+        <div class="card" id="card-ocr-err">
+          <div class="card-label">OCR-Fehlerquote</div>
+          <div class="card-value" id="ocr-rate">—</div>
+          <div class="card-sub"><span id="docs-error">—</span> fehlerhafte von <span id="docs-total">—</span> Dokumenten</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Aktuell in Verarbeitung</div>
+          <div class="card-value" id="docs-processing">—</div>
+          <div class="card-sub">Dokumente gerade aktiv verarbeitet</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Generierungsfehler (30 Tage)</div>
+          <div class="card-value" id="gen-errors">—</div>
+          <div class="card-sub">Fehlgeschlagene Generierungsversuche</div>
+        </div>
+      </div>
+      <!--  3. Umsatz  -->
+      <div class="section-title">Umsatz</div>
+      <div class="grid g4">
+        <div class="card card-gold">
+          <div class="card-label">MRR</div>
+          <div class="card-value" id="mrr" style="font-size:32px;">—</div>
+          <div class="card-sub">Monthly Recurring Revenue (Stripe)</div>
+        </div>
+        <div class="card">
+          <div class="card-label">ARR</div>
+          <div class="card-value" id="arr">—</div>
+          <div class="card-sub">Annual Recurring Revenue (MRR × 12)</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Umsatz diesen Monat</div>
+          <div class="card-value" id="revenue-month">—</div>
+          <div class="card-sub">Erfolgreich abgerechnet (Stripe)</div>
+        </div>
+        <div class="card" id="card-churn">
+          <div class="card-label">Churn diesen Monat</div>
+          <div class="card-value" id="churn">—</div>
+          <div class="card-sub">Gekündigte Abonnements</div>
+        </div>
+      </div>
+      <!--  Claude API Kosten  -->
+      <div class="section-title">Claude API Kosten</div>
+      <div class="grid g4">
+        <div class="card card-gold">
+          <div class="card-label">Kosten diesen Monat</div>
+          <div class="card-value" id="claude-cost-month">—</div>
+          <div class="card-sub" id="claude-cost-month-tokens">— Tokens</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Kosten gesamt</div>
+          <div class="card-value" id="claude-cost-total">—</div>
+          <div class="card-sub" id="claude-cost-total-tokens">— Tokens gesamt</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Ø Kosten pro Gutachten</div>
+          <div class="card-value" id="claude-cost-per-gen">—</div>
+          <div class="card-sub" id="claude-model-label">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Marge diesen Monat</div>
+          <div class="card-value" id="claude-margin">—</div>
+          <div class="card-sub">Umsatz Monat − API-Kosten</div>
+        </div>
+      </div>
+      <!--  4. Abonnements  -->
+      <div class="section-title">Abonnements</div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-label">Aktive Abonnements nach Plan</div>
+          <div id="plan-breakdown" style="margin-top:0.75rem;"></div>
+          <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid var(--border);font-size:11px;color:var(--light);">
+            Neu heute: <strong id="subs-today" style="color:var(--navy)">—</strong>
+            &nbsp;·&nbsp; Neu diese Woche: <strong id="subs-week" style="color:var(--navy)">—</strong>
+            &nbsp;·&nbsp; Neu diesen Monat (Stripe): <strong id="stripe-subs-month" style="color:var(--navy)">—</strong>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-label">Solo / Expert Verhältnis</div>
+          <div style="display:flex;gap:2rem;margin-top:0.75rem;margin-bottom:1rem;">
+            <div>
+              <div style="font-size:22px;font-weight:700;color:var(--navy);" id="solo-count">—</div>
+              <div style="font-size:11px;color:var(--light);">Solo-Lizenzen</div>
+            </div>
+            <div>
+              <div style="font-size:22px;font-weight:700;color:var(--gold);" id="expert-count">—</div>
+              <div style="font-size:11px;color:var(--light);">Expert-Lizenzen</div>
+            </div>
+            <div>
+              <div style="font-size:22px;font-weight:700;color:var(--mid);" id="quota-exhausted">—</div>
+              <div style="font-size:11px;color:var(--orange);">Solo-Quota erschöpft</div>
+            </div>
+          </div>
+          <div style="font-size:11px;color:var(--light);padding-top:0.75rem;border-top:1px solid var(--border);">
+            Solo-Nutzer mit ausgeschöpftem Monatslimit sind potenzielle Upgrade-Kandidaten.
+          </div>
+        </div>
+      </div>
+      <!--  5. Nutzer & Funnel  -->
+      <div class="section-title">Nutzer & Konversions-Funnel</div>
+      <div class="funnel" id="funnel-row">
+        <div class="funnel-step">
+          <div class="funnel-num" id="f-registered">—</div>
+          <div class="funnel-label">Registriert</div>
+          <div class="funnel-pct">100 %</div>
+          <div class="funnel-arrow">→</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-num" id="f-verified">—</div>
+          <div class="funnel-label">Verifiziert</div>
+          <div class="funnel-pct" id="f-verified-pct">—</div>
+          <div class="funnel-arrow">→</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-num" id="f-subscribed">—</div>
+          <div class="funnel-label">Abonniert</div>
+          <div class="funnel-pct" id="f-subscribed-pct">—</div>
+        </div>
+      </div>
+      <div class="grid g4" style="margin-top:1rem;">
+        <div class="card">
+          <div class="card-label">Neue Nutzer heute</div>
+          <div class="card-value" id="users-today">—</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Neue Nutzer diese Woche</div>
+          <div class="card-value" id="users-week">—</div>
+        </div>
+        <div class="card card-warn">
+          <div class="card-label">Verifiziert — kein Abo</div>
+          <div class="card-value" id="verified-no-sub">—</div>
+          <div class="card-sub">Warme Leads — bereits approbiert</div>
+        </div>
+        <div class="card">
+          <div class="card-label">Verifizierung ausstehend</div>
+          <div class="card-value" id="pending-verif">—</div>
+          <div class="card-sub">Noch nicht genehmigt</div>
+        </div>
+      </div>
+      <!--  6. Nutzung  -->
+      <div class="section-title">Nutzung & Qualität</div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-label">Generierungen nach Gutachtentyp</div>
+          <div class="type-bar" id="type-breakdown"></div>
+        </div>
+        <div class="card">
+          <div class="card-label">Nutzungsqualität</div>
+          <div style="margin-top:0.5rem;">
+            <div class="health-row"><span>Ø Generierungen pro Fall</span><span class="health-val ok" id="avg-gen">—</span></div>
+            <div class="health-row"><span>Export-Rate (Exports / echte Generierungen)</span><span class="health-val" id="export-rate">—</span></div>
+            <div class="health-row"><span>Fälle gesamt</span><span class="health-val ok" id="cases-total">—</span></div>
+            <div class="health-row"><span>Fälle heute / diese Woche</span><span class="health-val ok" id="cases-tw">—</span></div>
+            <div class="health-row"><span>Generierungen gesamt</span><span class="health-val ok" id="gen-total">—</span></div>
+            <div class="health-row"><span>Echte Generierungen / Demo</span><span class="health-val" id="gen-real-demo">—</span></div>
+            <div class="health-row"><span>Generierungen heute / diese Woche</span><span class="health-val ok" id="gen-tw">—</span></div>
+            <div class="health-row"><span>Exports gesamt / heute</span><span class="health-val ok" id="exports-tw">—</span></div>
+            <div class="health-row"><span>Vorgutachten hochgeladen</span><span class="health-val ok" id="vorgutachten">—</span></div>
+            <div class="health-row"><span>Vorlagen hochgeladen</span><span class="health-val ok" id="vorlagen">—</span></div>
+            <div class="health-row"><span>Abrechnungen erstellt</span><span class="health-val ok" id="abrechnungen">—</span></div>
+          </div>
+        </div>
+      </div>
+      <!--  7. Empfehlungen  -->
+      <div class="section-title">Empfehlungsprogramm</div>
+      <div class="grid g2">
+        <div class="card">
+          <div class="card-label">Empfehlungen gesamt</div>
+          <div class="card-value" id="ref-total">—</div>
+        </div>
+        <div class="card card-gold">
+          <div class="card-label">Prämien ausgezahlt</div>
+          <div class="card-value" id="ref-rewarded">—</div>
+          <div class="card-sub" id="ref-reward-eur">à 50 € pro Empfehlung</div>
+        </div>
+      </div>
+      <!--  8. Ausstehende Verifizierungen  -->
+      <div class="section-title">Ausstehende Verifizierungen</div>
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="card-label" style="margin:0;">Eingereichte Dokumente — noch nicht geprüft</div>
+          <span id="pending-verif-count" style="font-size:11px;font-weight:600;color:var(--gold);background:rgba(184,154,94,0.1);padding:3px 10px;border-radius:10px;">—</span>
+        </div>
+        <div class="verif-list" id="verif-list">
+          <div class="verif-empty">Wird geladen…</div>
+        </div>
+      </div>
+      <div class="dash-footer">exart.io Admin Dashboard · Auto-Refresh alle 5 Minuten · Alle Zeiten lokal</div>
+    </div>
+  </div>
+
+  <script>
+const API = 'https://exart-backend.onrender.com'
+let adminKey = ''
+let timer = null
+
+document.getElementById('admin-key').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin() })
+
+async function doLogin() {
+  const key = document.getElementById('admin-key').value.trim()
+  if (!key) return
+  try {
+    const r = await fetch(`${API}/api/admin/metrics`, { headers: { 'x-admin-key': key } })
+    if (r.status === 401) { document.getElementById('login-error').style.display = 'block'; return }
+    adminKey = key
+    sessionStorage.setItem('exart_admin_key', key)
+    document.getElementById('login-screen').style.display = 'none'
+    document.getElementById('dashboard').style.display = 'block'
+    render(await r.json())
+    loadPendingVerifications()
+    timer = setInterval(loadMetrics, 5 * 60 * 1000)
+  } catch(e) {
+    document.getElementById('login-error').textContent = 'Verbindungsfehler: ' + e.message
+    document.getElementById('login-error').style.display = 'block'
+  }
+}
+
+window.addEventListener('load', () => {
+  const saved = sessionStorage.getItem('exart_admin_key')
+  if (saved) { document.getElementById('admin-key').value = saved; doLogin() }
+})
+
+async function loadMetrics() {
+  try {
+    const r = await fetch(`${API}/api/admin/metrics`, { headers: { 'x-admin-key': adminKey } })
+    if (r.ok) render(await r.json())
+    loadPendingVerifications()
+  } catch(e) { console.error(e) }
+}
+
+// ── Pending verifications ────────────────────────────────────────────────────
+async function loadPendingVerifications() {
+  try {
+    const r = await fetch(`${API}/api/admin/pending-verifications`, {
+      headers: { 'x-admin-key': adminKey }
+    })
+    if (!r.ok) return
+    const { pending, count } = await r.json()
+
+    const countEl = document.getElementById('pending-verif-count')
+    if (countEl) countEl.textContent = count > 0 ? `${count} ausstehend` : 'Keine'
+
+    const list = document.getElementById('verif-list')
+    if (!list) return
+
+    if (!pending || pending.length === 0) {
+      list.innerHTML = '<div class="verif-empty">Keine ausstehenden Verifizierungen.</div>'
+      return
+    }
+
+    const storageUrl  = 'https://supabase.com/dashboard/project/bcxyychocefmurtblmwa/storage/buckets/verification-documents'
+    const sqlEditorUrl = 'https://supabase.com/dashboard/project/bcxyychocefmurtblmwa/editor'
+
+    list.innerHTML = pending.map(p => {
+      const date = p.submitted_at
+        ? new Date(p.submitted_at).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : '—'
+      return `<div class="verif-item">
+        <span class="verif-item-name">${escHtml(p.full_name)}</span>
+        <span class="verif-item-org">${escHtml(p.org_name)}</span>
+        <span class="verif-item-type">${escHtml(p.doc_type)}</span>
+        <span class="verif-item-date">${date}</span>
+        <div class="verif-item-links">
+          <a class="verif-link verif-link-doc" href="${storageUrl}" target="_blank">Dokument →</a>
+          <a class="verif-link verif-link-approve" href="${sqlEditorUrl}" target="_blank">SQL ✓</a>
+        </div>
+      </div>`
+    }).join('')
+  } catch(e) {
+    console.error('[VERIF]', e)
+  }
+}
+
+function escHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function render(d) {
+  const ts = new Date(d.timestamp)
+  set('last-updated', 'Stand: ' + ts.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }))
+  // Alert banner
+  const down = Object.values(d.uptime).filter(u => u.status === 'down')
+  const stuck = d.health?.stuck_docs || 0
+  const alerts = []
+  down.forEach(u => alerts.push(`⚠ ${u.label} ist offline`))
+  if (stuck > 0) alerts.push(`⚠ ${stuck} Dokument(e) hängen in Verarbeitung`)
+  const banner = document.getElementById('alert-banner')
+  if (alerts.length > 0) { banner.textContent = alerts.join('  ·  '); banner.style.display = 'block' }
+  else banner.style.display = 'none'
+  // Uptime
+  renderUptime('backend',  d.uptime.backend)
+  renderUptime('frontend', d.uptime.frontend)
+  renderUptime('database', d.uptime.database)
+  // Health
+  const h = d.health || {}
+  setHealth('stuck-docs', h.stuck_docs, h.stuck_docs > 0 ? 'warn' : 'ok')
+  setHealth('ocr-rate', (h.ocr_error_rate || 0) + ' %', h.ocr_error_rate > 5 ? 'err' : h.ocr_error_rate > 0 ? 'warn' : 'ok')
+  set('docs-error',      h.docs_error)
+  set('docs-total',      h.docs_total)
+  set('docs-processing', h.docs_processing)
+  setHealth('gen-errors', h.gen_errors_month, h.gen_errors_month > 0 ? 'warn' : 'ok')
+  if (h.stuck_docs > 0) document.getElementById('card-stuck').className = 'card card-warn'
+  if (h.ocr_error_rate > 5) document.getElementById('card-ocr-err').className = 'card card-err'
+  // Revenue
+  const r = d.revenue || {}
+  const q = d.quality || {}
+  set('mrr',           eur(r.mrr_eur))
+  set('arr',           eur(q.arr_eur || r.mrr_eur * 12))
+  set('revenue-month', eur(r.month_eur))
+  const churn = q.churn_month || 0
+  setHealth('churn', churn, churn > 2 ? 'warn' : 'ok')
+  if (churn > 0) document.getElementById('card-churn').className = 'card card-warn'
+  // Subscriptions
+  const s = d.subscriptions || {}
+  const planLabels = { solo: 'Solo', solo_yearly: 'Solo (jährlich)', expert: 'Expert', expert_yearly: 'Expert (jährlich)', unit: 'Einzelgutachten', none: 'Kein Plan' }
+  const plans = s.by_plan || {}
+  document.getElementById('plan-breakdown').innerHTML = Object.entries(plans).length > 0
+    ? Object.entries(plans).map(([k,v]) =>
+        `<div class="plan-row"><span class="plan-tag">${planLabels[k]||k}</span><strong style="color:var(--navy)">${v}</strong></div>`
+      ).join('')
+    : '<div style="color:var(--light);font-size:12px;">Keine aktiven Abos</div>'
+  set('subs-today',        s.new_today)
+  set('subs-week',         s.new_week)
+  set('stripe-subs-month', s.stripe_new_month)
+  set('solo-count',        q.solo_count)
+  set('expert-count',      q.expert_count)
+  set('quota-exhausted',   d.funnel?.solo_quota_exhausted || 0)
+  // Claude API Cost
+  const cc = d.claude_cost || {}
+  const realGens      = d.usage?.generations?.real || 0
+  const monthCostEur  = cc.month_cost_eur || 0
+  const totalCostEur  = cc.total_cost_eur || 0
+  const monthTokens   = (cc.month_input_tokens  || 0) + (cc.month_output_tokens  || 0)
+  const totalTokens   = (cc.total_input_tokens  || 0) + (cc.total_output_tokens  || 0)
+  const costPerGen    = realGens > 0 ? (totalCostEur / realGens) : 0
+  const margin        = (r.month_eur || 0) - monthCostEur
+  set('claude-cost-month',        eur(monthCostEur))
+  set('claude-cost-total',        eur(totalCostEur))
+  set('claude-cost-per-gen',      costPerGen > 0 ? eur(costPerGen) : '—')
+  set('claude-margin',            eur(margin))
+  set('claude-cost-month-tokens', num(monthTokens) + ' Tokens (' + num(cc.month_input_tokens||0) + ' in / ' + num(cc.month_output_tokens||0) + ' out)')
+  set('claude-cost-total-tokens', num(totalTokens) + ' Tokens gesamt')
+  set('claude-model-label',       cc.model || '—')
+  const marginCard = document.querySelector('#claude-margin')?.closest('.card')
+  if (marginCard) marginCard.className = 'card' + (margin < 0 ? ' card-warn' : margin > 50 ? ' card-gold' : '')
+  // Funnel
+  const f = d.funnel || {}
+  set('f-registered',    f.registered)
+  set('f-verified',      f.verified)
+  set('f-subscribed',    f.subscribed)
+  set('f-verified-pct',  (f.conversion_reg_to_verified || 0) + ' %')
+  set('f-subscribed-pct',(f.conversion_verified_to_sub || 0) + ' %')
+  set('users-today',     d.users?.new_today)
+  set('users-week',      d.users?.new_week)
+  set('verified-no-sub', f.verified_no_sub)
+  set('pending-verif',   f.registered_not_verified)
+  // Type breakdown
+  const types = d.usage?.by_type || {}
+  const typeLabels = { betreuung: 'Rechtliche Betreuung', allgemein: 'Allgemein', unterbringung: 'Unterbringung § 1831', zwangsmassnahmen: 'Zwangsmaßnahmen § 1832' }
+  const typeColors = { betreuung: '#1a2640', allgemein: '#b89a5e', unterbringung: '#4a5568', zwangsmassnahmen: '#7a8a9a' }
+  const totalTypes = Object.values(types).reduce((a,b) => a+b, 0) || 1
+  const maxType    = Math.max(1, ...Object.values(types))
+  document.getElementById('type-breakdown').innerHTML = Object.entries(types).length > 0
+    ? Object.entries(types).sort((a,b) => b[1]-a[1]).map(([k,v]) =>
+        `<div class="type-row">
+          <span class="type-name">${typeLabels[k]||k}</span>
+          <div class="type-fill" style="width:${Math.max(6,v/maxType*100)}px;background:${typeColors[k]||'#ccc'}"></div>
+          <span class="type-pct">${Math.round(v/totalTypes*100)} %</span>
+          <span class="type-count">${v}</span>
+        </div>`).join('')
+    : '<div style="color:var(--light);font-size:12px;margin-top:0.5rem;">Noch keine Generierungen</div>'
+  // Quality
+  const u = d.usage || {}
+  set('avg-gen',      q.avg_gen_per_case || 0)
+  set('export-rate',  (q.export_rate_pct || 0) + ' %')
+  set('cases-total',  u.cases?.total)
+  set('cases-tw',     (u.cases?.today||0) + ' / ' + (u.cases?.week||0))
+  set('gen-total',    u.generations?.total)
+  set('gen-real-demo',(u.generations?.real||0) + ' / ' + (u.generations?.demo||0))
+  set('gen-tw',       (u.generations?.today||0) + ' / ' + (u.generations?.week||0))
+  set('exports-tw',   (u.exports?.total||0) + ' / ' + (u.exports?.today||0))
+  set('vorgutachten', u.vorgutachten)
+  set('vorlagen',     u.vorlagen)
+  set('abrechnungen', u.abrechnungen)
+  // Referrals
+  const ref = d.referrals || {}
+  set('ref-total',    ref.total)
+  set('ref-rewarded', ref.rewarded)
+  set('ref-reward-eur', `Gesamtwert: ${eur((ref.rewarded||0) * 100)} ausgezahlt`)
+}
+
+function renderUptime(key, u) {
+  if (!u) return
+  document.getElementById(`dot-${key}`).className = `dot ${u.status}`
+  const badge = document.getElementById(`badge-${key}`)
+  badge.className   = `uptime-badge ${u.status}`
+  badge.textContent = u.status === 'up' ? 'Online' : u.status === 'down' ? 'Offline' : 'Beeinträchtigt'
+  document.getElementById(`meta-${key}`).textContent = u.status === 'up'
+    ? `HTTP ${u.code} · ${u.ms} ms` : (u.error || `HTTP ${u.code}`)
+}
+
+function set(id, val) { const el = document.getElementById(id); if (el) el.textContent = val ?? '—' }
+function num(n) { return typeof n === 'number' ? n.toLocaleString('de-DE') : '—' }
+function setHealth(id, val, cls) {
+  const el = document.getElementById(id)
+  if (!el) return
+  el.textContent = val ?? '—'
+  el.className = `health-val ${cls || ''}`
+}
+function eur(n) {
+  if (typeof n !== 'number') return '—'
+  return n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'
+}
+  </script>
+</body>
+</html>

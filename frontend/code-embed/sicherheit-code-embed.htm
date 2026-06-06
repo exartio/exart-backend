@@ -1,0 +1,65 @@
+
+<div id="global-nav"></div>
+
+<div class="legal-hero">
+  <div class="legal-hero-inner">
+    <p class="legal-hero-eyebrow">Vertrauen &amp; Sicherheit</p>
+    <h1>Sicherheitsarchitektur</h1>
+    <p class="legal-hero-meta">Wie wir Ihre Daten und Gutachten schützen</p>
+  </div>
+</div>
+
+<div class="legal-body">
+  <div class="legal-content">
+
+    <div class="legal-highlight">
+      <p>Medizinische Gutachten enthalten die sensibelsten Informationen, die einem Arzt anvertraut werden. Unsere Sicherheitsarchitektur wurde nicht nachträglich ergänzt — sie ist der Ausgangspunkt des gesamten Systems.</p>
+    </div>
+
+    <h2>Datenhaltung und Infrastruktur</h2>
+    <p>Alle Daten werden ausschließlich auf Servern innerhalb der Deutschlands (Standort Frankfurt/Main, 'eu-central-1') gespeichert und verarbeitet. Es findet keine Übermittlung in Drittstaaten statt.</p>
+
+    <h2>Verschlüsselung</h2>
+    <h3>Übertragung</h3>
+    <p>Alle Verbindungen zur Plattform sind durch TLS 1.3 verschlüsselt. Ältere Protokolle sind deaktiviert.</p>
+    <h3>Speicherung</h3>
+    <p>Alle gespeicherten Daten sind mit AES-256 verschlüsselt. Verschlüsselungsschlüssel werden vom Datenbankinhalt getrennt verwaltet.</p>
+    <h3>Dateien</h3>
+    <p>Hochgeladene Dokumente werden in isolierten, privaten Storage-Buckets abgelegt. Zugriff erfolgt ausschließlich über kurzlebige, signierte URLs (Gültigkeit: 1 Stunde).</p>
+
+    <h2>Authentifizierung und Zugangskontrolle</h2>
+    <p>Passwörter werden ausschließlich als bcrypt-Hashes gespeichert. Alle API-Anfragen werden durch JWT-Tokens authentifiziert. Datenbankzugriffe sind durch Row Level Security (RLS) abgesichert — jeder Nutzer kann ausschließlich auf seine eigenen Daten zugreifen.</p>
+
+    <h2>Approbationsverifizierung</h2>
+    <p>Die Verwendung der vollen Funktionen setzt den Nachweis einer ärztlichen Approbation voraus. Eingereichte Verifikationsdokumente werden manuell geprüft. Nur approbierte Ärzte erhalten vollständigen Zugang zu den KI-Generierungsfunktionen.</p>
+
+    <h2>KI-Verarbeitung</h2>
+    <div class="legal-highlight">
+      <p>Ihre Daten werden niemals zum Training von KI-Modellen verwendet. Dies ist vertraglich mit Anthropic vereinbart und gilt ohne Ausnahme.</p>
+    </div>
+
+    <h2>Sicherheitsmaßnahmen im Betrieb</h2>
+    <ul>
+      <li>Regelmäßige Dependency-Audits und automatisierte Schwachstellenscans</li>
+      <li>Principle of Least Privilege für alle Systemkomponenten</li>
+      <li>Audit-Logs für sicherheitsrelevante Ereignisse</li>
+      <li>Automatisierte Backups in getrennter EU-Region</li>
+      <li>Monitoring bei ungewöhnlichen Zugriffsmustern</li>
+    </ul>
+
+    <h2>Meldung von Sicherheitslücken</h2>
+    <p>Bitte melden Sie gefundene Schwachstellen vertraulich an: <a href="mailto:kontakt@exart.io">kontakt@exart.io</a>. Wir bestätigen den Eingang innerhalb von 48 Stunden.</p>
+
+    <h2>Zertifizierungen und Konformität</h2>
+    <ul>
+      <li>DSGVO-konform (EU-Datenhaltung, AVV, Betroffenenrechte)</li>
+      <li>BDSG-konform</li>
+      <li>BSI-Grundschutz-orientiert</li>
+      <li>EU-KI-Verordnung konform</li>
+    </ul>
+    <p>Für ein technisches Sicherheitsbriefing im Rahmen institutioneller Beschaffung: <a href="mailto:kontakt@exart.io">kontakt@exart.io</a></p>
+
+  </div>
+</div>
+
+<div id="global-footer"></div>

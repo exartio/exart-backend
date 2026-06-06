@@ -1,0 +1,435 @@
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  const caseId   = getParam('case')
+  const outputId = getParam('output')
+  if (!caseId || !outputId) { window.location.href = '/dashboard'; return }
+
+  // Nav user name
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  // Back button
+  const backBtn = document.getElementById('back-to-case-btn')
+  if (backBtn) backBtn.href = `/dashboard-cases?id=${caseId}`
+
+  let quill         = null
+  let saveTimer     = null
+  let currentOutput = null
+  let isRestricted  = false
+  let isLocked      = false
+  let caseStatus    = null
+
+  // Init Quill
+  quill = new Quill('#quill-editor', {
+    theme: 'snow',
+    placeholder: 'Gutachten wird geladen...',
+    modules: {
+      toolbar: false,
+    },
+  })
+
+  quill.on('text-change', () => {
+    if (isRestricted || isLocked) return
+    clearTimeout(saveTimer)
+    saveTimer = setTimeout(autoSave, 2000)
+    setSaveStatus('Nicht gespeichert', 'unsaved')
+  })
+
+
+  // ── Format toolbar ────────────────────────────────────────
+  document.querySelectorAll('.fmt-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (isLocked || isRestricted) return
+      const action = btn.dataset.action
+      const range  = quill.getSelection(true)
+      switch(action) {
+        case 'bold':         quill.format('bold',      !quill.getFormat(range).bold); break
+        case 'italic':       quill.format('italic',    !quill.getFormat(range).italic); break
+        case 'underline':    quill.format('underline', !quill.getFormat(range).underline); break
+        case 'header-1':     quill.format('header', quill.getFormat(range).header === 1 ? false : 1); break
+        case 'header-2':     quill.format('header', quill.getFormat(range).header === 2 ? false : 2); break
+        case 'header-3':     quill.format('header', quill.getFormat(range).header === 3 ? false : 3); break
+        case 'list-bullet':  quill.format('list', quill.getFormat(range).list === 'bullet'  ? false : 'bullet'); break
+        case 'list-ordered': quill.format('list', quill.getFormat(range).list === 'ordered' ? false : 'ordered'); break
+        case 'indent-plus':  quill.format('indent', '+1'); break
+        case 'indent-minus': quill.format('indent', '-1'); break
+        case 'clean':        if (range && range.length > 0) quill.removeFormat(range.index, range.length); break
+      }
+      quill.focus()
+      updateToolbarState()
+    })
+  })
+
+  // Update active states when cursor moves
+  function updateToolbarState() {
+    const range = quill.getSelection()
+    if (!range) return
+    const fmt = quill.getFormat(range)
+    document.querySelectorAll('.fmt-btn').forEach(b => b.classList.remove('active'))
+    if (fmt.bold)            document.querySelector('[data-action="bold"]')?.classList.add('active')
+    if (fmt.italic)          document.querySelector('[data-action="italic"]')?.classList.add('active')
+    if (fmt.underline)       document.querySelector('[data-action="underline"]')?.classList.add('active')
+    if (fmt.header === 1)    document.querySelector('[data-action="header-1"]')?.classList.add('active')
+    if (fmt.header === 2)    document.querySelector('[data-action="header-2"]')?.classList.add('active')
+    if (fmt.header === 3)    document.querySelector('[data-action="header-3"]')?.classList.add('active')
+    if (fmt.list === 'bullet')  document.querySelector('[data-action="list-bullet"]')?.classList.add('active')
+    if (fmt.list === 'ordered') document.querySelector('[data-action="list-ordered"]')?.classList.add('active')
+  }
+
+  quill.on('selection-change', updateToolbarState)
+
+  // ── Load output ───────────────────────────────────────────
+  async function loadOutput() {
+    try {
+      const { output } = await api.get(`/api/generate/output/${outputId}`)
+      currentOutput = output
+
+      const titleEl = document.getElementById('editor-case-title')
+      const refEl   = document.getElementById('editor-case-ref')
+      if (titleEl) titleEl.textContent = output.cases?.title || ''
+      if (refEl)   refEl.textContent   = output.cases?.patient_ref || ''
+
+      // Check case completion status
+      const { case: c } = await api.get(`/api/cases/${caseId}`)
+      caseStatus = c.status
+
+      if (c.status === 'completed') {
+        setLocked(true)
+      }
+
+      // Check quota
+      const quota = await api.get(`/api/subscriptions/quota?case_id=${caseId}`)
+      const fullText = output.content_json?.text || ''
+
+      if (!isLocked && (output.is_demo || (!quota.allowed && quota.reason !== 'no_active_subscription'))) {
+        isRestricted = true
+        quill.setText(fullText.slice(0, 2000) + '\n\n[...]\n\nDieser Inhalt ist nur mit einem aktiven Abonnement vollständig sichtbar.')
+        quill.disable()
+        showUpgradePrompt(quota.reason || 'demo')
+      } else if (!isLocked && !quota.allowed) {
+        isRestricted = true
+        quill.setText(fullText.slice(0, 2000) + '\n\n[...]\n\nBitte schließen Sie ein Abonnement ab.')
+        quill.disable()
+        showUpgradePrompt('no_active_subscription')
+      } else if (!isLocked) {
+        quill.setText(fullText)
+        quill.enable()
+      } else {
+        quill.setText(fullText)
+      }
+
+      setSaveStatus('Gespeichert', 'saved')
+      await loadVersionDropdown()
+
+    } catch (err) {
+      console.error('Failed to load output:', err)
+    }
+  }
+
+  // ── Lock / unlock ─────────────────────────────────────────
+  function setLocked(locked) {
+    isLocked = locked
+    const lockedBanner   = document.getElementById('locked-banner')
+    const completeBadge  = document.getElementById('completion-badge')
+    const completeBtn    = document.getElementById('complete-btn')
+    const saveBtn        = document.getElementById('save-btn')
+
+    if (locked) {
+      if (lockedBanner)  lockedBanner.style.display  = 'flex'
+      if (completeBadge) completeBadge.style.display  = 'inline-flex'
+      if (completeBtn)   completeBtn.style.display    = 'none'
+      if (saveBtn)       saveBtn.style.display        = 'none'
+      quill.disable()
+    } else {
+      if (lockedBanner)  lockedBanner.style.display  = 'none'
+      if (completeBadge) completeBadge.style.display  = 'none'
+      if (completeBtn)   completeBtn.style.display    = 'inline-flex'
+      if (saveBtn)       saveBtn.style.display        = 'inline-flex'
+      if (!isRestricted) quill.enable()
+    }
+  }
+
+  // ── Version dropdown ──────────────────────────────────────
+  async function loadVersionDropdown() {
+    const btn   = document.getElementById('version-dropdown-btn')
+    const label = document.getElementById('version-label')
+    const list  = document.getElementById('version-dropdown-list')
+    if (!list) return
+
+    try {
+      const { outputs } = await api.get(`/api/generate/case/${caseId}/outputs`)
+      const current = outputs.find(o => o.id === outputId)
+      if (label && current) label.textContent = `Version ${current.version}${current.is_demo ? ' (Demo)' : ''}`
+
+      list.innerHTML = ''
+      outputs.forEach(o => {
+        const item = document.createElement('a')
+        item.href  = `/dashboard-editor?case=${caseId}&output=${o.id}`
+        item.style.cssText = `display:flex;align-items:center;justify-content:space-between;padding:10px 14px;font-size:13px;color:var(--navy);text-decoration:none;border-bottom:1px solid var(--border-light);gap:12px;${o.id === outputId ? 'background:rgba(184,154,94,0.08);font-weight:500;' : ''}`
+        item.innerHTML = `
+          <span>Version ${o.version}${o.is_demo ? ' <span style="font-size:10px;color:var(--gold);">(Demo)</span>' : ''}</span>
+          <span style="font-size:11px;color:var(--text-light);white-space:nowrap;">${formatDate(o.created_at)}</span>
+        `
+        list.appendChild(item)
+      })
+    } catch(err) { console.error('Version dropdown failed:', err) }
+  }
+
+  // Toggle dropdown
+  document.getElementById('version-dropdown-btn')?.addEventListener('click', e => {
+    e.stopPropagation()
+    const menu = document.getElementById('version-dropdown-menu')
+    if (menu) menu.style.display = menu.style.display === 'none' ? 'block' : 'none'
+  })
+  document.addEventListener('click', () => {
+    const menu = document.getElementById('version-dropdown-menu')
+    if (menu) menu.style.display = 'none'
+  })
+
+  // ── Source documents ──────────────────────────────────────
+  async function loadSourceDocuments() {
+    try {
+      const { case: c } = await api.get(`/api/cases/${caseId}`)
+      const sourceList  = document.getElementById('source-list')
+      if (!sourceList) return
+
+      const readyDocs = (c.case_documents || []).filter(d => d.status === 'ready' && d.extracted_text)
+      if (readyDocs.length === 0) {
+        sourceList.innerHTML = '<p style="font-size:13px;color:var(--text-light);text-align:center;padding:2rem 0;">Keine verarbeiteten Unterlagen vorhanden.</p>'
+        return
+      }
+
+      const tabBar      = document.createElement('div')
+      tabBar.className  = 'source-tabs'
+      const contentArea = document.createElement('div')
+      contentArea.className = 'source-content'
+
+      readyDocs.forEach((doc, i) => {
+        const tab = document.createElement('button')
+        tab.className   = `source-tab${i === 0 ? ' active' : ''}`
+        tab.textContent = doc.file_name.length > 20 ? doc.file_name.slice(0, 18) + '…' : doc.file_name
+        tab.title       = doc.file_name
+
+        const content = document.createElement('div')
+        content.className = `source-doc${i === 0 ? '' : ' hidden'}`
+        content.innerHTML = `
+          <div class="source-doc-header">
+            <strong>${escapeHtml(doc.file_name)}</strong>
+            <span class="doc-type-badge">${docTypeLabel(doc.doc_type)}</span>
+          </div>
+          <pre class="source-text">${escapeHtml(doc.extracted_text || '')}</pre>
+        `
+        tab.addEventListener('click', () => {
+          document.querySelectorAll('.source-tab').forEach(t => t.classList.remove('active'))
+          document.querySelectorAll('.source-doc').forEach(d => d.classList.add('hidden'))
+          tab.classList.add('active')
+          content.classList.remove('hidden')
+        })
+        tabBar.appendChild(tab)
+        contentArea.appendChild(content)
+      })
+
+      sourceList.innerHTML = ''
+      sourceList.appendChild(tabBar)
+      sourceList.appendChild(contentArea)
+    } catch (err) { console.error('Failed to load source docs:', err) }
+  }
+
+  // ── Auto-save ─────────────────────────────────────────────
+  async function autoSave() {
+    if (!currentOutput || isRestricted || isLocked) return
+    setSaveStatus('Wird gespeichert...', 'saving')
+    try {
+      const text = quill.getText()
+      await api.patch(`/api/generate/output/${outputId}`, { content_json: { text } })
+      setSaveStatus('Gespeichert', 'saved')
+    } catch {
+      setSaveStatus('Fehler beim Speichern', 'error')
+    }
+  }
+
+  document.getElementById('save-btn')?.addEventListener('click', async () => {
+    if (isRestricted || isLocked) return
+    clearTimeout(saveTimer)
+    await autoSave()
+  })
+
+  // ── Export ────────────────────────────────────────────────
+  async function doExport(format) {
+    const statusEl = document.getElementById('export-status')
+    setStatus(statusEl, `Exportiere als ${format.toUpperCase()}...`, 'info')
+    if (!isLocked) await autoSave()
+    try {
+      const { url, filename } = await api.post('/api/export', { output_id: outputId, format })
+      const a = document.createElement('a')
+      a.href = url; a.download = filename; a.click()
+      setStatus(statusEl, `${format.toUpperCase()} heruntergeladen!`, 'success')
+    } catch (err) { setStatus(statusEl, err.message, 'error') }
+  }
+
+  function showExportLegalModal(format) {
+    if (isRestricted) { showUpgradePrompt('no_active_subscription'); return }
+
+    const overlay   = document.getElementById('export-legal-overlay')
+    const checkbox  = document.getElementById('export-legal-checkbox')
+    const confirmBtn = document.getElementById('export-legal-confirm')
+    const cancelBtn  = document.getElementById('export-legal-cancel')
+    const formatEl   = document.getElementById('export-legal-format')
+    const checkRow   = document.getElementById('export-legal-checkbox-row')
+
+    if (!overlay) { doExport(format); return }
+
+    // Reset state
+    checkbox.checked    = false
+    confirmBtn.disabled = true
+    if (formatEl) formatEl.textContent = `Als ${format.toUpperCase()} exportieren`
+
+    overlay.style.display = 'flex'
+
+    // Enable confirm only when checkbox is checked
+    const onCheck = () => { confirmBtn.disabled = !checkbox.checked }
+    checkbox.addEventListener('change', onCheck)
+    checkRow.addEventListener('click', e => {
+      if (e.target !== checkbox) { checkbox.checked = !checkbox.checked; onCheck() }
+    })
+
+    const close = () => {
+      overlay.style.display = 'none'
+      checkbox.removeEventListener('change', onCheck)
+    }
+
+    confirmBtn.addEventListener('click', () => {
+      if (!checkbox.checked) return
+      close()
+      doExport(format)
+    }, { once: true })
+
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  document.getElementById('export-pdf-btn')?.addEventListener('click',  () => showExportLegalModal('pdf'))
+  document.getElementById('export-docx-btn')?.addEventListener('click', () => showExportLegalModal('docx'))
+
+  // ── Completion modal ──────────────────────────────────────
+  const completeOverlay = document.getElementById('complete-modal-overlay')
+
+  document.getElementById('complete-btn')?.addEventListener('click', () => {
+    if (completeOverlay) completeOverlay.style.display = 'flex'
+  })
+  document.getElementById('complete-modal-cancel')?.addEventListener('click', () => {
+    if (completeOverlay) completeOverlay.style.display = 'none'
+  })
+  completeOverlay?.addEventListener('click', e => {
+    if (e.target === completeOverlay) completeOverlay.style.display = 'none'
+  })
+
+  document.getElementById('complete-modal-confirm')?.addEventListener('click', async () => {
+    const btn = document.getElementById('complete-modal-confirm')
+    btn.disabled = true; btn.textContent = 'Wird gespeichert…'
+
+    try {
+      // Save current edits first
+      await autoSave()
+      // Mark case as completed
+      await api.patch(`/api/cases/${caseId}`, { status: 'completed' })
+      if (completeOverlay) completeOverlay.style.display = 'none'
+      caseStatus = 'completed'
+      setLocked(true)
+    } catch(err) {
+      alert(err.message)
+    }
+    btn.disabled = false
+    btn.innerHTML = '<i class="ti ti-lock-check"></i> Fertigstellen &amp; sperren'
+  })
+
+  // ── Unlock ────────────────────────────────────────────────
+  document.getElementById('unlock-btn')?.addEventListener('click', async () => {
+    if (!confirm('Sperre aufheben und Gutachten wieder bearbeitbar machen?')) return
+    try {
+      await api.patch(`/api/cases/${caseId}`, { status: 'in_progress' })
+      caseStatus = 'in_progress'
+      setLocked(false)
+    } catch(err) { alert(err.message) }
+  })
+
+  // ── Upgrade prompt ────────────────────────────────────────
+  function showUpgradePrompt(reason) {
+    const el = document.getElementById('upgrade-prompt')
+    if (!el) return
+    el.style.display = 'flex'
+    const messages = {
+      demo:                   { title: 'Demo-Vorschau', text: 'Dies ist eine Demo. Schließen Sie ein Abonnement ab, um das vollständige Gutachten zu sehen.' },
+      unit_exhausted:         { title: 'Einzelgutachten verbraucht', text: 'Ihr Einzelgutachten wurde bereits verwendet. Kaufen Sie ein weiteres (59\u00a0\u20ac) oder wechseln Sie zu einem Monatsabonnement.' },
+      monthly_limit_reached:  { title: 'Monatliches Limit erreicht', text: 'Sie haben Ihr monatliches Limit erreicht. Kaufen Sie ein Einzelgutachten (59\u00a0\u20ac) oder wechseln Sie zur Expert-Lizenz.' },
+      no_active_subscription: { title: 'Kein aktives Abonnement', text: 'Schließen Sie ein Abonnement ab oder kaufen Sie ein Einzelgutachten, um das vollständige Gutachten zu sehen.' },
+    }
+    const msg = messages[reason] || messages.no_active_subscription
+    const titleEl = el.querySelector('.upgrade-prompt-title')
+    const textEl  = el.querySelector('.upgrade-prompt-text')
+    if (titleEl) titleEl.textContent = msg.title
+    if (textEl)  textEl.textContent  = msg.text
+  }
+
+  document.getElementById('upgrade-prompt-btn')?.addEventListener('click', () => { window.location.href = '/#preise' })
+  document.getElementById('upgrade-portal-btn')?.addEventListener('click', async () => {
+    try { const { url } = await api.post('/api/subscriptions/portal', {}); window.location.href = url }
+    catch { window.location.href = '/#preise' }
+  })
+
+  // ── Logout ────────────────────────────────────────────────
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Init ──────────────────────────────────────────────────
+  await Promise.all([loadOutput(), loadSourceDocuments()])
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setSaveStatus(text, type) {
+    const el = document.getElementById('save-status')
+    if (el) { el.textContent = text; el.className = `save-status save-status--${type}` }
+  }
+
+  function setStatus(el, text, type) {
+    if (!el) return
+    el.hidden = false
+    el.className = `msg msg-${type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'}`
+    el.innerHTML = `<i class="ti ti-${type === 'error' ? 'alert-circle' : type === 'success' ? 'circle-check' : 'loader-2'}"></i> ${text}`
+  }
+
+  function docTypeLabel(type) {
+    return { medical_scan: 'Akte/Scan', lab_report: 'Labor', own_findings: 'Befund', court_order: 'Beschluss', other: 'Unterlage' }[type] || type
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  }
+
+})()
+</script>
+
+<style>
+.source-tabs        { display:flex; gap:4px; overflow-x:auto; padding-bottom:8px; border-bottom:1px solid var(--border-light); margin-bottom:12px; }
+.source-tab         { padding:6px 12px; border:1px solid var(--border-mid); border-radius:4px; background:var(--cream); cursor:pointer; font-size:12px; white-space:nowrap; font-family:var(--sans); color:var(--text-mid); }
+.source-tab.active  { background:var(--navy); color:#fff; border-color:var(--navy); }
+.source-doc.hidden  { display:none; }
+.source-doc-header  { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.source-text        { font-size:11.5px; line-height:1.6; white-space:pre-wrap; word-break:break-word; max-height:70vh; overflow-y:auto; padding:12px; background:#fafaf8; border-radius:4px; border:1px solid var(--border-light); font-family:var(--sans); margin:0; }
+.doc-type-badge     { font-size:10px; padding:2px 8px; border-radius:12px; background:rgba(184,154,94,0.12); color:var(--gold); font-family:var(--sans); }
+.save-status--saved   { color:#2e7d32; font-size:12px; }
+.save-status--unsaved { color:#e65100; font-size:12px; }
+.save-status--saving  { color:var(--navy); font-size:12px; }
+.save-status--error   { color:var(--error); font-size:12px; }
+#quill-editor         { min-height:65vh; font-size:13px; }
+.ql-container         { font-family:"Source Serif 4","Times New Roman",serif; }
+.ql-disabled          { background:#fafaf8 !important; }
+</style>

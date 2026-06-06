@@ -1,0 +1,376 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  // Render sidebar — settings sub-pages use hash for active state
+  const initHash = window.location.hash?.replace('#', '') || 'profil'
+  if (typeof renderSidebar === 'function') renderSidebar(initHash)
+
+
+  // ── Section switching ────────────────────────────────────
+  function showSection(name) {
+    const validSections = ['profil', 'verifizierung', 'abonnement', 'sicherheit']
+    if (!validSections.includes(name)) name = 'profil'
+    document.querySelectorAll('.settings-link').forEach(l => l.classList.remove('active'))
+    document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'))
+    document.querySelector(`.settings-link[data-section="${name}"]`)?.classList.add('active')
+    document.getElementById(`section-${name}`)?.classList.add('active')
+    history.replaceState(null, '', `/dashboard-settings#${name}`)
+  }
+
+  // Wire tab buttons
+  document.querySelectorAll('.settings-link').forEach(btn => {
+    btn.addEventListener('click', () => showSection(btn.dataset.section))
+  })
+
+  // Activate from URL hash on load
+  const hash = window.location.hash?.replace('#', '')
+  showSection(hash || 'profil')
+
+  // Also handle sidebar hash links without reload
+  document.querySelectorAll('.sidebar-nav a[data-section]').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault()
+      showSection(a.dataset.section)
+    })
+  })
+
+  await showDemoBannerIfNeeded()
+
+  // Logout
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // Load profile
+  try {
+    const profile = await api.get('/api/profile')
+
+    const nameEl = document.querySelector('.app-nav-user')
+    if (nameEl) nameEl.textContent = profile.full_name || session.user?.user_metadata?.full_name || session.user?.email
+
+    const nameInput = document.getElementById('profile-name')
+    const emailEl   = document.getElementById('profile-email')
+    const titleEl   = document.getElementById('profile-title')
+    if (nameInput) nameInput.value = profile.full_name || ''
+    if (emailEl)   emailEl.value   = session.user.email || ''
+    if (titleEl)   titleEl.value   = profile.title || ''
+
+    const status = profile.verification_status || 'unsubmitted'
+    const badgeMap = {
+      unsubmitted: ['badge-pending', 'Ausstehend'],
+      submitted:   ['badge-pending', 'In Prüfung'],
+      pending:     ['badge-pending', 'In Prüfung'],
+      verified:    ['badge-active',  'Verifiziert'],
+      rejected:    ['badge-error',   'Abgelehnt'],
+    }
+    const [cls, label] = badgeMap[status] || badgeMap.unsubmitted
+    ;[document.getElementById('verification-status')].forEach(el => {
+      if (el) { el.className = `badge ${cls}`; el.textContent = label }
+    })
+    const detailText = document.getElementById('verif-detail-text')
+    if (detailText) {
+      const textMap = {
+        unsubmitted: 'Kein Dokument hochgeladen.',
+        submitted:   'Dokument eingereicht — wird geprüft.',
+        pending:     'Dokument eingereicht — wird geprüft.',
+        verified:    'Approbation bestätigt.',
+        rejected:    'Dokument abgelehnt. Bitte erneut einreichen.',
+      }
+      detailText.textContent = textMap[status] || ''
+    }
+
+    // Hide upload zone if already verified
+    const uploadZone   = document.getElementById('verif-drop-zone')
+    const uploadBtn    = document.getElementById('upload-verif-btn')
+    const docTypeField = document.getElementById('verif-doc-type')?.closest('.field')
+    const verifiedMsg  = document.getElementById('verif-verified-msg')
+
+    if (status === 'verified') {
+      if (uploadZone)    uploadZone.style.display    = 'none'
+      if (uploadBtn)     uploadBtn.style.display     = 'none'
+      if (docTypeField)  docTypeField.style.display  = 'none'
+      if (verifiedMsg)   verifiedMsg.style.display   = 'flex'
+    } else {
+      if (verifiedMsg)   verifiedMsg.style.display   = 'none'
+    }
+  } catch(err) {
+    console.error('Profile load error:', err)
+  }
+
+  // Load subscription
+  try {
+    const sub = await api.get('/api/subscriptions/me')
+    sub.plan_key = sub.plan_key || ''
+    const planName  = document.getElementById('plan-name')
+    const planMeta  = document.getElementById('plan-meta')
+    const planBadge = document.getElementById('plan-status-badge')
+    if (planName)  planName.textContent  = sub.plan_name || 'Kein aktiver Plan'
+    // Build meta text with quota and remaining days
+    let metaText = ''
+    if (sub.current_period_end) {
+      const endDate  = new Date(sub.current_period_end)
+      const today    = new Date()
+      const diffMs   = endDate - today
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+      const dateStr  = formatDate(sub.current_period_end)
+      if (diffDays > 0) {
+        metaText = `Nächste Abrechnung: ${dateStr} (in ${diffDays} Tag${diffDays === 1 ? '' : 'en'})`
+      } else {
+        metaText = `Abgelaufen am ${dateStr}`
+      }
+    }
+    if (sub.quota) {
+      if (sub.quota.type === 'monthly') {
+        let quotaText = `${sub.quota.used} / ${sub.quota.limit} Gutachten diesen Monat verwendet`
+        if (sub.quota.addon_units > 0) {
+          quotaText += ` (inkl. ${sub.quota.addon_units} Einzelgutachten-Zukauf)`
+        }
+        metaText = quotaText + (metaText ? ` · ${metaText}` : '')
+      } else if (sub.quota.type === 'total') {
+        metaText = `${sub.quota.used} / ${sub.quota.limit} Einzelgutachten verwendet` + (metaText ? ` · ${metaText}` : '')
+      } else if (sub.quota.type === 'unlimited') {
+        metaText = 'Unbegrenzte Gutachten' + (metaText ? ` · ${metaText}` : '')
+      }
+    }
+    if (planMeta)  planMeta.textContent  = metaText
+    if (planBadge) {
+      planBadge.textContent = sub.status === 'active' ? 'Aktiv' : 'Inaktiv'
+      planBadge.className   = `badge ${sub.status === 'active' ? 'badge-active' : 'badge-error'}`
+    }
+
+    // Show unit purchase button with correct price based on plan
+    const unitBtn = document.getElementById('buy-unit-btn')
+    const unitPrice = document.getElementById('unit-price')
+    if (unitBtn && sub.status === 'active') {
+      const isSolo = sub.plan_key === 'solo' || sub.plan_key === 'solo_yearly'
+      const isExpert = sub.plan_key === 'expert' || sub.plan_key === 'expert_yearly'
+      if (!isExpert) {
+        unitBtn.style.display = 'inline-flex'
+        if (unitPrice) unitPrice.textContent = isSolo ? '39 €' : '59 €'
+        if (isSolo) {
+          unitBtn.title = 'Vergünstigter Preis für Solo-Lizenzinhaber'
+        }
+      }
+    }
+  } catch(err) {
+    console.error('Subscription load error:', err)
+  }
+
+  // Save profile
+  document.getElementById('save-profile-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('save-profile-btn')
+    const statusEl = document.getElementById('profile-save-status')
+    btn.disabled   = true
+    btn.textContent = 'Speichern...'
+    try {
+      await api.patch('/api/profile', {
+        full_name: document.getElementById('profile-name')?.value.trim(),
+        title:     document.getElementById('profile-title')?.value.trim(),
+      })
+      setStatus(statusEl, 'Gespeichert', 'success')
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+    }
+    btn.disabled    = false
+    btn.textContent = 'Änderungen speichern'
+  })
+
+  // Verification upload
+  document.getElementById('verif-file')?.addEventListener('change', e => {
+    if (e.target.files[0]) document.getElementById('upload-verif-btn').style.display = 'inline-flex'
+  })
+
+  document.getElementById('upload-verif-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('upload-verif-btn')
+    const file     = document.getElementById('verif-file')?.files[0]
+    const docType  = document.getElementById('verif-doc-type')?.value
+    const statusEl = document.getElementById('verif-upload-status')
+    if (!file) return
+    btn.disabled    = true
+    btn.textContent = 'Hochladen...'
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('doc_type', docType)
+      await api.upload('/api/uploads/verification', fd)
+      setStatus(statusEl, 'Dokument eingereicht. Wir prüfen es innerhalb von 24–48 Stunden.', 'success')
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+      btn.disabled    = false
+      btn.textContent = 'Dokument einreichen'
+    }
+  })
+
+  // Billing portal
+  document.getElementById('manage-billing-btn')?.addEventListener('click', async () => {
+    try {
+      const { url } = await api.post('/api/subscriptions/portal', {})
+      window.location.href = url
+    } catch(err) { alert(err.message) }
+  })
+
+  // Upgrade
+  document.getElementById('upgrade-btn')?.addEventListener('click', () => {
+    window.location.href = '/#preise'
+  })
+
+  // Buy unit
+  document.getElementById('buy-unit-btn')?.addEventListener('click', async () => {
+    try {
+      const { url } = await api.post('/api/stripe/checkout', { plan: 'unit' })
+      window.location.href = url
+    } catch(err) { alert(err.message) }
+  })
+
+  // Change password
+  document.getElementById('change-pw-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('change-pw-btn')
+    const newPw    = document.getElementById('pw-new')?.value
+    const confirm  = document.getElementById('pw-confirm')?.value
+    const statusEl = document.getElementById('pw-change-status')
+
+    if (!newPw || newPw.length < 8) {
+      setStatus(statusEl, 'Passwort muss mindestens 8 Zeichen lang sein.', 'error')
+      return
+    }
+    if (newPw !== confirm) {
+      setStatus(statusEl, 'Passwörter stimmen nicht überein.', 'error')
+      return
+    }
+    btn.disabled    = true
+    btn.textContent = 'Speichern...'
+    const { error } = await _supabase.auth.updateUser({ password: newPw })
+    if (error) {
+      setStatus(statusEl, error.message, 'error')
+    } else {
+      setStatus(statusEl, 'Passwort geändert.', 'success')
+    }
+    btn.disabled    = false
+    btn.textContent = 'Passwort ändern'
+  })
+
+  // Delete account modal confirm
+  document.getElementById('delete-modal-confirm')?.addEventListener('click', async () => {
+    const input    = document.getElementById('delete-confirm-input')?.value.trim()
+    const errorEl  = document.getElementById('delete-modal-error')
+    const btn      = document.getElementById('delete-modal-confirm')
+
+    if (input !== 'LÖSCHEN') {
+      errorEl.hidden = false
+      errorEl.querySelector('span').textContent = 'Bitte geben Sie LÖSCHEN ein um zu bestätigen.'
+      return
+    }
+
+    btn.disabled    = true
+    btn.textContent = 'Wird gelöscht...'
+
+    try {
+      await api.delete('/api/account')
+      await _supabase.auth.signOut()
+      window.location.href = '/'
+    } catch(err) {
+      errorEl.hidden = false
+      errorEl.querySelector('span').textContent = err.message
+      btn.disabled    = false
+      btn.textContent = 'Endgültig löschen'
+    }
+  })
+
+
+
+  // ── Referral system ───────────────────────────────────────
+  async function loadReferral() {
+    try {
+      const data = await api.get('/api/referral/me')
+
+      // Show own code
+      const codeEl = document.getElementById('referral-code-display')
+      if (codeEl) codeEl.textContent = data.referral_code || '————————'
+
+      // Show stats
+      if (data.referral_count > 0) {
+        const statsEl = document.getElementById('referral-stats')
+        const countEl = document.getElementById('referral-count')
+        const rewardedEl = document.getElementById('rewarded-count')
+        if (statsEl) statsEl.style.display = 'block'
+        if (countEl) countEl.textContent = data.referral_count
+        if (rewardedEl) rewardedEl.textContent = data.rewarded_count
+      }
+
+      // Show referrer if already applied
+      if (data.referred_by_id) {
+        const inputWrap = document.getElementById('referral-input-wrap')
+        const confirmed = document.getElementById('referral-confirmed')
+        const nameEl    = document.getElementById('referrer-name')
+        if (inputWrap) inputWrap.style.display = 'none'
+        if (confirmed) confirmed.style.display = 'block'
+        if (nameEl && data.referrer_name) nameEl.textContent = data.referrer_name
+      }
+    } catch(err) {
+      console.error('Failed to load referral:', err)
+    }
+  }
+
+  await loadReferral()
+
+  // Copy referral code
+  document.getElementById('copy-referral-btn')?.addEventListener('click', () => {
+    const code = document.getElementById('referral-code-display')?.textContent
+    if (code && code !== '————————') {
+      navigator.clipboard.writeText(code)
+      const btn = document.getElementById('copy-referral-btn')
+      btn.innerHTML = '<i class="ti ti-check"></i> Kopiert!'
+      setTimeout(() => { btn.innerHTML = '<i class="ti ti-copy"></i> Kopieren' }, 2000)
+    }
+  })
+
+  // Apply referral code
+  document.getElementById('apply-referral-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('apply-referral-btn')
+    const input    = document.getElementById('referral-input')
+    const statusEl = document.getElementById('referral-status')
+    const code     = input?.value.trim().toUpperCase()
+
+    if (!code || code.length < 6) {
+      setStatus(statusEl, 'Bitte geben Sie einen gültigen Code ein.', 'error')
+      return
+    }
+
+    btn.disabled = true; btn.textContent = 'Wird geprüft…'
+
+    try {
+      const { referrer_name } = await api.post('/api/referral/apply', { code })
+
+      // Hide input, show confirmed
+      document.getElementById('referral-input-wrap').style.display = 'none'
+      const confirmed = document.getElementById('referral-confirmed')
+      const nameEl    = document.getElementById('referrer-name')
+      if (confirmed) confirmed.style.display = 'block'
+      if (nameEl)    nameEl.textContent = referrer_name
+      statusEl.hidden = true
+
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+      btn.disabled = false
+      btn.innerHTML = '<i class="ti ti-check"></i> Bestätigen'
+    }
+  })
+
+  // Auto-uppercase referral input
+  document.getElementById('referral-input')?.addEventListener('input', e => {
+    e.target.value = e.target.value.toUpperCase().replace(/[^A-Z]/g, '')
+  })
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setStatus(el, text, type) {
+    if (!el) return
+    el.hidden    = false
+    el.className = `msg msg-${type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'}`
+    el.innerHTML = `<i class="ti ti-${type === 'error' ? 'alert-circle' : type === 'success' ? 'circle-check' : 'loader-2'}"></i> ${text}`
+  }
+
+})()
+</script>

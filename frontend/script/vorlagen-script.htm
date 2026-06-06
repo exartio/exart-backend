@@ -1,0 +1,187 @@
+<script>
+(async function() {
+  const session = await requireAuth()
+  if (!session) return
+
+  renderSidebar('vorlagen')
+
+
+  const nameEl = document.getElementById('nav-user-name')
+  if (nameEl) nameEl.textContent = session.user?.user_metadata?.full_name || session.user?.email
+
+  await showDemoBannerIfNeeded()
+
+  // ── Load templates ────────────────────────────────────────
+  async function loadTemplates() {
+    const loadingEl   = document.getElementById('tpl-loading')
+    const containerEl = document.getElementById('tpl-list-container')
+    const countEl     = document.getElementById('tpl-count')
+
+    try {
+      const { templates } = await api.get('/api/templates')
+      if (loadingEl) loadingEl.hidden = true
+      containerEl.innerHTML = ''
+
+      if (!templates || templates.length === 0) {
+        containerEl.innerHTML = '<p style="font-size:13px;color:var(--text-light);padding:1rem 0;">Noch keine Vorlagen hochgeladen.</p>'
+        if (countEl) { countEl.textContent = '0'; countEl.className = 'badge badge-draft' }
+        return
+      }
+
+      if (countEl) { countEl.textContent = templates.length; countEl.className = 'badge badge-active' }
+
+      templates.forEach(t => {
+        const statusMap = {
+          ready:      ['badge-active',  'Bereit'],
+          processing: ['badge-pending', 'Wird verarbeitet…'],
+          pending:    ['badge-pending', 'Ausstehend'],
+          error:      ['badge-error',   'Fehler'],
+        }
+        const [cls, label] = statusMap[t.status] || statusMap.pending
+        const chapters = t.content_json?.chapters || []
+        const intro    = t.content_json?.intro
+        const closing  = t.content_json?.closing
+
+        const card = document.createElement('div')
+        card.style.cssText = 'border:1px solid var(--border-light);border-radius:6px;padding:1.25rem;margin-bottom:1rem;'
+        card.innerHTML = `
+          <div style="display:flex;align-items:flex-start;gap:1rem;margin-bottom:${chapters.length > 0 ? '1rem' : '0'};">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:0.75rem;margin-bottom:4px;">
+                <span style="font-size:14px;font-weight:600;color:var(--navy);">${escapeHtml(t.name)}</span>
+                <span class="badge ${cls}">${label}</span>
+              </div>
+              ${t.description ? `<div style="font-size:12px;color:var(--text-light);">${escapeHtml(t.description)}</div>` : ''}
+              <div style="font-size:11px;color:var(--text-light);margin-top:4px;">${formatDate(t.created_at)}</div>
+            </div>
+            <button class="btn btn-danger btn-sm" onclick="deleteTemplate('${t.id}', this)">
+              <i class="ti ti-trash"></i> Löschen
+            </button>
+          </div>
+          ${chapters.length > 0 ? `
+            <div style="background:var(--cream);border-radius:4px;padding:0.75rem 1rem;">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:var(--text-light);margin-bottom:0.5rem;">
+                ${chapters.length} Kapitel
+              </div>
+              <ol style="margin:0;padding-left:1.25rem;font-size:12.5px;color:var(--text-mid);line-height:1.8;">
+                ${chapters.map(c => `<li>${escapeHtml(c)}</li>`).join('')}
+              </ol>
+              ${intro ? `<div style="margin-top:0.75rem;padding-top:0.75rem;border-top:1px solid var(--border-light);font-size:12px;color:var(--text-light);"><strong style="color:var(--text-mid);">Einleitung:</strong> ${escapeHtml(intro.slice(0, 120))}${intro.length > 120 ? '…' : ''}</div>` : ''}
+              ${closing ? `<div style="margin-top:0.5rem;font-size:12px;color:var(--text-light);"><strong style="color:var(--text-mid);">Schlussformel:</strong> ${escapeHtml(closing.slice(0, 120))}${closing.length > 120 ? '…' : ''}</div>` : ''}
+            </div>
+          ` : ''}
+        `
+        containerEl.appendChild(card)
+
+        if (t.status === 'pending' || t.status === 'processing') {
+          pollTemplateStatus(t.id, card.querySelector('.badge'))
+        }
+      })
+    } catch(err) {
+      if (loadingEl) { loadingEl.className = 'msg msg-error'; loadingEl.innerHTML = `<i class="ti ti-alert-circle"></i> ${err.message}` }
+    }
+  }
+
+  function pollTemplateStatus(id, badgeEl) {
+    const interval = setInterval(async () => {
+      try {
+        const { templates } = await api.get('/api/templates')
+        const t = (templates || []).find(t => t.id === id)
+        if (!t) { clearInterval(interval); return }
+        const statusMap = { ready: ['badge-active','Bereit'], processing: ['badge-pending','Wird verarbeitet…'], error: ['badge-error','Fehler'] }
+        const [cls, label] = statusMap[t.status] || ['badge-pending','Ausstehend']
+        if (badgeEl) { badgeEl.className = `badge ${cls}`; badgeEl.textContent = label }
+        if (t.status === 'ready' || t.status === 'error') {
+          clearInterval(interval)
+          if (t.status === 'ready') await loadTemplates()
+        }
+      } catch { clearInterval(interval) }
+    }, 3000)
+  }
+
+  // ── Confirm modal ────────────────────────────────────────
+  function showConfirm(onConfirm) {
+    const overlay   = document.getElementById('confirm-modal-overlay')
+    const okBtn     = document.getElementById('confirm-modal-ok')
+    const cancelBtn = document.getElementById('confirm-modal-cancel')
+    if (!overlay) { onConfirm(); return }
+
+    overlay.style.display = 'flex'
+
+    const close    = () => { overlay.style.display = 'none' }
+    const handleOk = () => { close(); onConfirm() }
+
+    okBtn.addEventListener('click', handleOk, { once: true })
+    cancelBtn.addEventListener('click', close, { once: true })
+    overlay.addEventListener('click', e => { if (e.target === overlay) close() }, { once: true })
+  }
+
+  window.deleteTemplate = async (id, btn) => {
+    showConfirm(async () => {
+      btn.disabled = true
+      try {
+        await api.delete(`/api/templates/${id}`)
+        await loadTemplates()
+      } catch(err) { alert(err.message); btn.disabled = false }
+    })
+  }
+
+  await loadTemplates()
+
+  // ── Upload ────────────────────────────────────────────────
+  document.getElementById('tpl-file')?.addEventListener('change', e => {
+    const btn = document.getElementById('upload-tpl-btn')
+    if (btn) btn.style.display = e.target.files[0] ? 'inline-flex' : 'none'
+  })
+
+  document.getElementById('upload-tpl-btn')?.addEventListener('click', async () => {
+    const btn      = document.getElementById('upload-tpl-btn')
+    const file     = document.getElementById('tpl-file')?.files[0]
+    const name     = document.getElementById('tpl-name')?.value.trim()
+    const desc     = document.getElementById('tpl-description')?.value.trim()
+    const statusEl = document.getElementById('tpl-upload-status')
+
+    if (!file) return
+    if (!name) { setStatus(statusEl, 'Bitte Vorlagenname eingeben.', 'error'); return }
+
+    btn.disabled = true; btn.textContent = 'Wird hochgeladen…'
+
+    try {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('name', name)
+      if (desc) fd.append('description', desc)
+      await api.upload('/api/templates/upload', fd)
+      setStatus(statusEl, 'Vorlage hochgeladen — Struktur wird extrahiert…', 'success')
+      document.getElementById('tpl-file').value = ''
+      document.getElementById('tpl-name').value = ''
+      document.getElementById('tpl-description').value = ''
+      btn.style.display = 'none'
+      setTimeout(loadTemplates, 1500)
+    } catch(err) {
+      setStatus(statusEl, err.message, 'error')
+    }
+    btn.disabled = false; btn.textContent = 'Vorlage hochladen & Struktur extrahieren'
+  })
+
+  // ── Logout ────────────────────────────────────────────────
+  document.getElementById('logout-btn')?.addEventListener('click', async () => {
+    await _supabase.auth.signOut()
+    window.location.href = '/login'
+  })
+
+  // ── Helpers ───────────────────────────────────────────────
+  function setStatus(el, text, type) {
+    if (!el) return
+    el.hidden = false
+    el.className = `msg msg-${type === 'error' ? 'error' : type === 'success' ? 'success' : 'info'}`
+    el.innerHTML = `<i class="ti ti-${type === 'error' ? 'alert-circle' : type === 'success' ? 'circle-check' : 'loader-2'}"></i> ${text}`
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
+  }
+
+})()
+</script>
