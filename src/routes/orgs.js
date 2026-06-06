@@ -36,7 +36,7 @@ router.post('/', requireAuth, async (req, res) => {
   // Create org
   const { data: org, error: orgError } = await supabaseAdmin
     .from('organizations')
-    .insert({ name: name.trim() })
+    .insert({ name: name.trim(), slug: slug?.trim() || name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') })
     .select()
     .single()
 
@@ -148,7 +148,7 @@ router.post('/', requireAuth, async (req, res) => {
   // Create org
   const { data: org, error: orgError } = await supabaseAdmin
     .from('organizations')
-    .insert({ name: name.trim() })
+    .insert({ name: name.trim(), slug: slug?.trim() || name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') })
     .select()
     .single()
 
