@@ -3,13 +3,31 @@
   const { data: { session } } = await _supabase.auth.getSession()
   if (session) { window.location.href = '/dashboard'; return }
 
+  function validatePassword(pw) {
+    if (!pw || pw.length < 12) return 'Passwort muss mindestens 12 Zeichen lang sein.'
+    if (!/[0-9]/.test(pw)) return 'Passwort muss mindestens eine Zahl enthalten.'
+    if (!/[^a-zA-Z0-9]/.test(pw)) return 'Passwort muss mindestens ein Sonderzeichen enthalten (z. B. !, @, #, $).'
+    return null
+  }
+
+  function supabaseErrorDE(msg) {
+    const map = {
+      'Invalid login credentials':          'E-Mail-Adresse oder Passwort ist falsch.',
+      'Email not confirmed':                 'Bitte bestätigen Sie zuerst Ihre E-Mail-Adresse.',
+      'User already registered':             'Diese E-Mail-Adresse ist bereits registriert.',
+      'Password should be at least 6 characters': 'Passwort muss mindestens 12 Zeichen lang sein.',
+      'signup is disabled':                  'Registrierung ist derzeit deaktiviert.',
+      'Email rate limit exceeded':           'Zu viele Versuche. Bitte warten Sie kurz.',
+    }
+    return map[msg] || msg
+  }
+
   document.getElementById('tab-login')?.addEventListener('click', () => {
     document.getElementById('login-form').style.display = 'block'
     document.getElementById('register-form').style.display = 'none'
     document.getElementById('tab-login').classList.add('active')
     document.getElementById('tab-register').classList.remove('active')
   })
-
   document.getElementById('tab-register')?.addEventListener('click', () => {
     document.getElementById('login-form').style.display = 'none'
     document.getElementById('register-form').style.display = 'block'
@@ -27,8 +45,10 @@
     if (!email || !password) { errorText.textContent = 'Bitte alle Felder ausfüllen.'; errorEl.hidden = false; return }
     btn.disabled = true; btn.textContent = 'Anmelden...'
     const { error } = await _supabase.auth.signInWithPassword({ email, password })
-    if (error) { errorText.textContent = error.message; errorEl.hidden = false; btn.disabled = false; btn.innerHTML = '<i class="ti ti-login"></i> Anmelden' }
-    else { window.location.href = '/dashboard' }
+    if (error) {
+      errorText.textContent = supabaseErrorDE(error.message)
+      errorEl.hidden = false; btn.disabled = false; btn.innerHTML = '<i class="ti ti-login"></i> Anmelden'
+    } else { window.location.href = '/dashboard' }
   })
 
   document.getElementById('reg-submit')?.addEventListener('click', async () => {
@@ -42,11 +62,17 @@
     const successText = document.getElementById('auth-success-text')
     errorEl.hidden = true
     if (!name || !email || !password) { errorText.textContent = 'Bitte alle Felder ausfüllen.'; errorEl.hidden = false; return }
-    if (password.length < 8) { errorText.textContent = 'Passwort muss mindestens 8 Zeichen lang sein.'; errorEl.hidden = false; return }
+    const pwError = validatePassword(password)
+    if (pwError) { errorText.textContent = pwError; errorEl.hidden = false; return }
     btn.disabled = true; btn.textContent = 'Konto erstellen...'
     const { error } = await _supabase.auth.signUp({ email, password, options: { data: { full_name: name } } })
-    if (error) { errorText.textContent = error.message; errorEl.hidden = false; btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Konto erstellen' }
-    else { successText.textContent = 'Konto erstellt! Bitte bestätigen Sie Ihre E-Mail-Adresse.'; successEl.hidden = false; btn.disabled = true }
+    if (error) {
+      errorText.textContent = supabaseErrorDE(error.message)
+      errorEl.hidden = false; btn.disabled = false; btn.innerHTML = '<i class="ti ti-user-plus"></i> Konto erstellen'
+    } else {
+      successText.textContent = 'Konto erstellt! Bitte bestätigen Sie Ihre E-Mail-Adresse.'
+      successEl.hidden = false; btn.disabled = true
+    }
   })
 })()
 </script>
