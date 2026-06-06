@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM = 'exart.io <noreply@exart.io>'
-const ADMIN_EMAIL = ['k.schlaaff@posteo.de', 'exartio@posteo.de']
+const ADMIN_EMAIL = ['exartio@posteo.de']
 
 // ── Verification notification to admin ───────────────────────
 export async function sendVerificationNotification({ fullName, docType, orgName, submittedAt, userId, orgId }) {
