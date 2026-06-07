@@ -3,7 +3,7 @@ import { Resend } from 'resend'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 const FROM = 'exart.io <noreply@exart.io>'
-const ADMIN_EMAIL = ['exartio@posteo.de']
+const ADMIN_EMAIL = 'k.schlaaff@posteo.de'
 
 // ── Verification notification to admin ───────────────────────
 export async function sendVerificationNotification({ fullName, docType, orgName, submittedAt, userId, orgId }) {
@@ -193,7 +193,7 @@ export async function sendVerificationApproved({ fullName, email }) {
 
           <table cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
             <tr><td style="background:#b89a5e;border-radius:4px;">
-              <a href="https://exart.io/dashboard"
+              <a href="${process.env.FRONTEND_URL || 'https://exart.io'}/dashboard"
                  style="display:inline-block;padding:11px 22px;font-size:13px;font-weight:500;color:#1a2640;text-decoration:none;font-family:'DM Sans',Arial,sans-serif;">
                 Zum Dashboard →
               </a>
@@ -504,8 +504,7 @@ export async function sendWelcomeEmail({ recipientName, recipientEmail }) {
 }
 
 // ── Einladungsmail ────────────────────────────────────────────────────────────
-export async function sendInvitationEmail({ recipientEmail, inviterName, orgName, role, acceptUrl }) {
-  const roleLabel = role === 'assistent' ? 'Assistent/in' : 'Sachverständige/r'
+export async function sendInvitationEmail({ recipientEmail, inviterName, orgName, acceptUrl }) {
 
   await resend.emails.send({
     from: FROM,
@@ -535,9 +534,7 @@ export async function sendInvitationEmail({ recipientEmail, inviterName, orgName
                 <strong style="color:#1a2640;">${inviterName}</strong> hat Sie eingeladen, der Organisation
                 <strong style="color:#1a2640;">${orgName}</strong> auf exart.io beizutreten.
               </p>
-              <p style="margin:0;font-size:13px;color:#4a5568;line-height:1.6;">
-                Ihre Rolle: <strong style="color:#1a2640;">${roleLabel}</strong>
-              </p>
+
             </td></tr>
           </table>
           <p style="margin:0 0 24px;font-size:14px;color:#4a5568;line-height:1.7;">
@@ -560,150 +557,6 @@ export async function sendInvitationEmail({ recipientEmail, inviterName, orgName
         </td></tr>
         <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.1);">
           <p style="margin:0;font-size:11px;color:#6b7a94;text-align:center;">exart.io · <a href="https://exart.io" style="color:#1a2640;">exart.io</a></p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
-  })
-}
-
-// ── Admin: new user registered ───────────────────────────────
-export async function sendAdminNewUserRegistered({ fullName, email }) {
-  await resend.emails.send({
-    from: FROM,
-    to: ADMIN_EMAIL,
-    subject: `[exart.io] Neue Registrierung — ${fullName || email}`,
-    html: `
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
-        <tr><td style="background:#1a2640;padding:24px 32px;">
-          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;">exart<span style="color:#b89a5e;">.</span>io</p>
-          <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.12em;text-transform:uppercase;">Admin-Benachrichtigung</p>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#1a2640;text-transform:uppercase;letter-spacing:0.1em;">Neue Registrierung</p>
-          <p style="margin:0 0 24px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;">Ein neuer Nutzer hat sich registriert.</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:0.5px solid rgba(26,38,64,0.12);border-radius:5px;overflow:hidden;margin-bottom:24px;">
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;width:140px;">Name</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;font-weight:500;">${fullName || '—'}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">E-Mail</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${email}</td>
-            </tr>
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">Zeitpunkt</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
-            </tr>
-          </table>
-          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">Das Konto ist noch nicht verifiziert. Eine Verifizierungsanfrage wird separat gemeldet, sobald der Nutzer seinen Approbationsnachweis einreicht.</p>
-        </td></tr>
-        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.08);">
-          <p style="margin:0;font-size:11px;color:#6b7a94;">exart.io Admin-System · Diese E-Mail wurde automatisch generiert.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
-  })
-}
-
-// ── Admin: user email confirmed ───────────────────────────────
-export async function sendAdminEmailConfirmed({ fullName, email }) {
-  await resend.emails.send({
-    from: FROM,
-    to: ADMIN_EMAIL,
-    subject: `[exart.io] E-Mail bestätigt — ${fullName || email}`,
-    html: `
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
-        <tr><td style="background:#1a2640;padding:24px 32px;">
-          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;">exart<span style="color:#b89a5e;">.</span>io</p>
-          <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.12em;text-transform:uppercase;">Admin-Benachrichtigung</p>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#2d7a4f;text-transform:uppercase;letter-spacing:0.1em;">E-Mail bestätigt</p>
-          <p style="margin:0 0 24px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;">Ein Nutzer hat seine E-Mail-Adresse bestätigt.</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:0.5px solid rgba(26,38,64,0.12);border-radius:5px;overflow:hidden;margin-bottom:24px;">
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;width:140px;">Name</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;font-weight:500;">${fullName || '—'}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">E-Mail</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${email}</td>
-            </tr>
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">Zeitpunkt</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
-            </tr>
-          </table>
-          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">Das Konto ist nun aktiv. Der Nutzer kann sich einloggen und eine Verifizierungsanfrage einreichen.</p>
-        </td></tr>
-        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.08);">
-          <p style="margin:0;font-size:11px;color:#6b7a94;">exart.io Admin-System · Diese E-Mail wurde automatisch generiert.</p>
-        </td></tr>
-      </table>
-    </td></tr>
-  </table>
-</body>
-</html>`,
-  })
-}
-
-// ── Admin: user deleted account ───────────────────────────────
-export async function sendAdminAccountDeleted({ fullName, email }) {
-  await resend.emails.send({
-    from: FROM,
-    to: ADMIN_EMAIL,
-    subject: `[exart.io] Konto gelöscht — ${fullName || email}`,
-    html: `
-<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
-<body style="margin:0;padding:0;background:#f7f4ef;font-family:'DM Sans',Arial,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f4ef;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="580" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:6px;overflow:hidden;border:0.5px solid rgba(26,38,64,0.12);">
-        <tr><td style="background:#1a2640;padding:24px 32px;">
-          <p style="margin:0;font-family:'Playfair Display',Georgia,serif;font-size:20px;font-weight:600;color:#ffffff;">exart<span style="color:#b89a5e;">.</span>io</p>
-          <p style="margin:6px 0 0;font-size:11px;color:rgba(255,255,255,0.45);letter-spacing:0.12em;text-transform:uppercase;">Admin-Benachrichtigung</p>
-        </td></tr>
-        <tr><td style="padding:32px;">
-          <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#b84040;text-transform:uppercase;letter-spacing:0.1em;">Konto gelöscht</p>
-          <p style="margin:0 0 24px;font-family:'Playfair Display',Georgia,serif;font-size:22px;font-weight:500;color:#1a2640;">Ein Nutzer hat sein Konto gelöscht.</p>
-          <table width="100%" cellpadding="0" cellspacing="0" style="border:0.5px solid rgba(26,38,64,0.12);border-radius:5px;overflow:hidden;margin-bottom:24px;">
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;width:140px;">Name</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;font-weight:500;">${fullName || '—'}</td>
-            </tr>
-            <tr>
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">E-Mail</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${email}</td>
-            </tr>
-            <tr style="background:#f7f4ef;">
-              <td style="padding:12px 16px;font-size:12px;color:#6b7a94;border-top:0.5px solid rgba(26,38,64,0.08);">Zeitpunkt</td>
-              <td style="padding:12px 16px;font-size:13px;color:#1a2640;border-top:0.5px solid rgba(26,38,64,0.08);">${new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
-            </tr>
-          </table>
-          <p style="margin:0;font-size:12px;color:#6b7a94;line-height:1.6;">Alle Konto- und Falldaten wurden gemäß DSGVO gelöscht.</p>
-        </td></tr>
-        <tr><td style="background:#f7f4ef;padding:16px 32px;border-top:0.5px solid rgba(26,38,64,0.08);">
-          <p style="margin:0;font-size:11px;color:#6b7a94;">exart.io Admin-System · Diese E-Mail wurde automatisch generiert.</p>
         </td></tr>
       </table>
     </td></tr>

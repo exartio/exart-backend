@@ -30,12 +30,10 @@ async function getOrgContext(authUserId) {
 // POST /api/invitations/send
 // Body: { email, role }
 router.post('/send', requireAuth, async (req, res) => {
-  const { email, role = 'sachverstaendige' } = req.body
+  const { email } = req.body
+  const role = 'assistent' // role is determined by verification, not invitation
 
   if (!email?.trim()) return res.status(400).json({ error: 'E-Mail-Adresse erforderlich' })
-  if (!['sachverstaendige', 'assistent'].includes(role)) {
-    return res.status(400).json({ error: 'Ungültige Rolle' })
-  }
 
   const orgCtx = await getOrgContext(req.user.id)
   if (!orgCtx?.org_id) return res.status(404).json({ error: 'Organisation nicht gefunden' })
@@ -63,49 +61,43 @@ router.post('/send', requireAuth, async (req, res) => {
 
   const plan = sub?.status === 'active' ? (sub.plan || 'none') : 'none'
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.none
-  const roleLimit = limits[role]
+  const totalLimit = (limits.sachverstaendige || 0) + (limits.assistent || 0)
 
-  // Check if limit is reached
-  if (roleLimit !== null) {
+  // Check if total member limit is reached
+  if (totalLimit !== null) {
     const { count: currentCount } = await supabaseAdmin
       .from('organization_members')
       .select('id', { count: 'exact', head: true })
       .eq('org_id', orgCtx.org_id)
-      .eq('role', role)
 
-    if ((currentCount || 0) >= roleLimit) {
-      const roleLabel = role === 'assistent' ? 'Assistenten' : 'Sachverständige'
+    if ((currentCount || 0) >= totalLimit) {
       return res.status(402).json({
-        error: `Ihr ${plan}-Plan erlaubt maximal ${roleLimit} ${roleLabel}. Bitte upgraden Sie Ihren Plan.`,
+        error: `Ihr ${plan}-Plan erlaubt maximal ${totalLimit} Mitglieder. Bitte upgraden Sie Ihren Plan.`,
         reason: 'plan_limit_reached',
-        limit: roleLimit,
+        limit: totalLimit,
         current: currentCount,
       })
     }
   }
 
-  // Check if user with this email exists
+  // Check if user with this email already exists and is a member
   const { data: { users } } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 })
   const targetUser = users?.find(u => u.email?.toLowerCase() === email.trim().toLowerCase())
 
-  if (!targetUser) {
-    return res.status(404).json({
-      error: 'Kein exart.io-Konto mit dieser E-Mail-Adresse gefunden. Der Nutzer muss zuerst ein Konto erstellen.',
-      reason: 'user_not_found',
-    })
-  }
+  if (targetUser) {
+    // Check if already a member
+    const { data: existingMember } = await supabaseAdmin
+      .from('organization_members')
+      .select('id')
+      .eq('org_id', orgCtx.org_id)
+      .eq('user_id', targetUser.id)
+      .single()
 
-  // Check if already a member
-  const { data: existingMember } = await supabaseAdmin
-    .from('organization_members')
-    .select('id')
-    .eq('org_id', orgCtx.org_id)
-    .eq('user_id', targetUser.id)
-    .single()
-
-  if (existingMember) {
-    return res.status(409).json({ error: 'Dieser Nutzer ist bereits Mitglied Ihrer Organisation.' })
+    if (existingMember) {
+      return res.status(409).json({ error: 'Dieser Nutzer ist bereits Mitglied Ihrer Organisation.' })
+    }
   }
+  // If user doesn't exist yet, the invitation is still sent — they register first, then accept
 
   // Check for existing pending invitation
   const { data: existingInvite } = await supabaseAdmin
