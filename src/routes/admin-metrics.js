@@ -40,10 +40,10 @@ router.get('/metrics', requireAdmin, async (req, res) => {
   const month    = new Date(now - 30 * 86400000).toISOString()
 
   // ── Uptime checks ──────────────────────────────────────────────────────────
-  async function ping(url, label) {
+  async function ping(url, label, extraHeaders = {}) {
     const start = Date.now()
     try {
-      const r = await fetch(url, { signal: AbortSignal.timeout(5000) })
+      const r = await fetch(url, { signal: AbortSignal.timeout(5000), headers: extraHeaders })
       return { label, url, status: r.ok ? 'up' : 'degraded', code: r.status, ms: Date.now() - start }
     } catch(e) {
       return { label, url, status: 'down', code: 0, ms: Date.now() - start, error: e.message }
@@ -53,7 +53,7 @@ router.get('/metrics', requireAdmin, async (req, res) => {
   const [backendPing, frontendPing, supabasePing] = await Promise.all([
     ping(`${process.env.RENDER_EXTERNAL_URL || 'https://exart-backend.onrender.com'}/health`, 'Backend (Render)'),
     ping('https://exart.io', 'Frontend (Webflow)'),
-    ping(`${process.env.SUPABASE_URL}/auth/v1/health`, 'Datenbank (Supabase)'),
+    ping(`${process.env.SUPABASE_URL}/auth/v1/health`, 'Datenbank (Supabase)', { 'apikey': process.env.SUPABASE_KEY }),
   ])
 
   // ── Users & verification ───────────────────────────────────────────────────
