@@ -1,6 +1,6 @@
 import { supabaseAdmin } from '../lib/supabase.js'
 
-// Plan limits — now counts cases created, not generations
+// Plan limits — counts cases created, not generations
 export const PLAN_LIMITS = {
   none:          { type: 'none',      limit: 0,    period: null },
   solo:          { type: 'monthly',   limit: 5,    period: 'month' },
@@ -21,7 +21,8 @@ export async function checkCaseCreationQuota(orgId) {
 
   const planConfig = PLAN_LIMITS[sub?.plan] || PLAN_LIMITS.none
 
-  // For plan 'none' or inactive: allow if addon units exist (e.g. free Gutachten on verification)
+  // For plan 'none', inactive, or missing sub: allow if addon units exist
+  // (e.g. free Gutachten granted on verification)
   if (!sub || sub.status !== 'active' || planConfig.type === 'none') {
     const addonUnits = sub?.addon_unit_count || 0
     if (addonUnits > 0) {
@@ -87,7 +88,7 @@ export async function checkCaseCreationQuota(orgId) {
 export async function incrementCaseCreationQuota(orgId) {
   const { data: sub } = await supabaseAdmin
     .from('subscriptions')
-    .select('plan, gutachten_count, monthly_count, addon_unit_count')
+    .select('plan, status, gutachten_count, monthly_count, addon_unit_count')
     .eq('org_id', orgId)
     .single()
 
@@ -95,7 +96,7 @@ export async function incrementCaseCreationQuota(orgId) {
 
   const planConfig = PLAN_LIMITS[sub.plan] || PLAN_LIMITS.none
 
-  if (planConfig.type === 'none') {
+  if (planConfig.type === 'none' || sub.status !== 'active') {
     // Decrement addon unit if present (e.g. free Gutachten granted on verification)
     const addonUnits = sub.addon_unit_count || 0
     if (addonUnits > 0) {
@@ -115,21 +116,15 @@ export async function incrementCaseCreationQuota(orgId) {
       .eq('org_id', orgId)
     console.log(`[QUOTA] Case created, unit count: ${(sub.gutachten_count || 0) + 1}/${planConfig.limit}`)
   } else if (planConfig.type === 'monthly') {
-    const newCount   = (sub.monthly_count || 0) + 1
-    const addonUnits = sub.addon_unit_count || 0
-    const baseLimit  = planConfig.limit
-    const updates    = { monthly_count: newCount }
-
-    if (newCount > baseLimit && addonUnits > 0) {
-      updates.addon_unit_count = addonUnits - 1
-      console.log(`[QUOTA] Addon unit consumed, ${addonUnits - 1} remaining`)
-    }
-
+    // Always increment monthly_count only.
+    // addon_unit_count is set at purchase time by the Stripe webhook and
+    // must NOT be decremented here — it resets with the subscription cycle.
+    const newCount = (sub.monthly_count || 0) + 1
     await supabaseAdmin
       .from('subscriptions')
-      .update(updates)
+      .update({ monthly_count: newCount })
       .eq('org_id', orgId)
-    console.log(`[QUOTA] Case created, monthly count: ${newCount}/${baseLimit + addonUnits}`)
+    console.log(`[QUOTA] Case created, monthly count: ${newCount}`)
   }
 }
 
@@ -171,4 +166,66 @@ export async function incrementGenerationQuota(caseId) {
     .eq('id', caseId)
 
   console.log(`[QUOTA] Generation ${newCount} for case ${caseId}`)
+}
+
+// ── OCR document limits per case ─────────────────────────────────────────────
+
+export const OCR_LIMITS = {
+  solo:          { case_document: 20, expert_finding: 20 },
+  solo_yearly:   { case_document: 20, expert_finding: 20 },
+  expert:        { case_document: 50, expert_finding: 50 },
+  expert_yearly: { case_document: 50, expert_finding: 50 },
+  unit:          { case_document: 20, expert_finding: 20 },
+  none:          { case_document:  5, expert_finding:  5 },
+}
+
+// Check if an org can OCR-process another document for a given case
+// type: 'case_document' | 'expert_finding'
+// Returns { allowed, used, limit }
+export async function checkOcrQuota(orgId, caseId, type) {
+  const { data: sub } = await supabaseAdmin
+    .from('subscriptions')
+    .select('plan')
+    .eq('org_id', orgId)
+    .single()
+
+  const plan   = sub?.plan || 'none'
+  const limits = OCR_LIMITS[plan] || OCR_LIMITS.none
+  const limit  = limits[type] ?? 0
+
+  const col = type === 'case_document' ? 'ocr_case_doc_count' : 'ocr_expert_finding_count'
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select(col)
+    .eq('id', caseId)
+    .single()
+
+  const used = caseRow?.[col] || 0
+
+  if (used >= limit) {
+    return { allowed: false, used, limit }
+  }
+  return { allowed: true, used, limit }
+}
+
+// Increment the OCR counter on the case after a document is queued for processing
+// type: 'case_document' | 'expert_finding'
+export async function incrementOcrCount(caseId, type) {
+  const col = type === 'case_document' ? 'ocr_case_doc_count' : 'ocr_expert_finding_count'
+
+  const { data: caseRow } = await supabaseAdmin
+    .from('cases')
+    .select(col)
+    .eq('id', caseId)
+    .single()
+
+  if (!caseRow) return
+
+  await supabaseAdmin
+    .from('cases')
+    .update({ [col]: (caseRow[col] || 0) + 1 })
+    .eq('id', caseId)
+
+  console.log(`[OCR] ${type} count incremented for case ${caseId}: ${(caseRow[col] || 0) + 1}`)
 }
