@@ -143,79 +143,84 @@ router.post('/send', requireAuth, async (req, res) => {
 })
 
 // GET /api/invitations/accept?token=xxx
-// Validates token and returns invite details (called by client-side script)
+// Validates token and returns invite details as JSON (no redirects)
 router.get('/accept', async (req, res) => {
   const { token } = req.query
-  const frontendUrl = process.env.FRONTEND_URL || 'https://exart.io'
+  if (!token) return res.status(400).json({ valid: false, reason: 'missing_token' })
 
-  if (!token) {
-    return res.redirect(`${frontendUrl}/dashboard?invite_error=missing_token`)
+  const { data: invite, error } = await supabaseAdmin
+    .from('invitations')
+    .select('id, org_id, email, role, status, expires_at')
+    .eq('token', token)
+    .single()
+
+  if (error || !invite) return res.json({ valid: false, reason: 'not_found' })
+  if (invite.status !== 'pending') return res.json({ valid: false, reason: 'already_used' })
+  if (new Date(invite.expires_at) < new Date()) {
+    await supabaseAdmin.from('invitations').update({ status: 'expired' }).eq('id', invite.id)
+    return res.json({ valid: false, reason: 'expired' })
   }
 
-  // Validate token
+  // Get org name for display
+  const { data: org } = await supabaseAdmin
+    .from('organizations')
+    .select('name')
+    .eq('id', invite.org_id)
+    .single()
+
+  res.json({ valid: true, email: invite.email, org_name: org?.name || '—', role: invite.role })
+})
+
+// POST /api/invitations/confirm
+// Called by frontend after user is authenticated — adds them to the org
+router.post('/confirm', requireAuth, async (req, res) => {
+  const { token } = req.body
+  if (!token) return res.status(400).json({ error: 'Token erforderlich' })
+
   const { data: invite, error } = await supabaseAdmin
     .from('invitations')
     .select('*')
     .eq('token', token)
     .single()
 
-  if (error || !invite) {
-    return res.redirect(`${frontendUrl}/dashboard?invite_error=not_found`)
-  }
-
-  if (invite.status !== 'pending') {
-    return res.redirect(`${frontendUrl}/dashboard?invite_error=already_used`)
-  }
-
-  if (new Date(invite.expires_at) < new Date()) {
-    await supabaseAdmin.from('invitations').update({ status: 'expired' }).eq('id', invite.id)
-    return res.redirect(`${frontendUrl}/dashboard?invite_error=expired`)
-  }
-
-  // Check if user is logged in via Authorization header or cookie
-  // Since this is a GET from email link, user may not be logged in
-  // Redirect to login first, then back to this URL
-  const authHeader = req.headers.authorization
-  if (!authHeader) {
-    const returnUrl = encodeURIComponent(`/api/invitations/accept?token=${token}`)
-    return res.redirect(`${frontendUrl}/login?redirect=${returnUrl}`)
-  }
-
-  // Verify JWT
-  const jwt = authHeader.replace('Bearer ', '')
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(jwt)
-
-  if (authError || !user) {
-    const returnUrl = encodeURIComponent(`/api/invitations/accept?token=${token}`)
-    return res.redirect(`${frontendUrl}/login?redirect=${returnUrl}`)
-  }
+  if (error || !invite) return res.status(404).json({ error: 'Einladung nicht gefunden' })
+  if (invite.status !== 'pending') return res.status(409).json({ error: 'Einladung bereits verwendet' })
+  if (new Date(invite.expires_at) < new Date()) return res.status(410).json({ error: 'Einladung abgelaufen' })
 
   // Verify email matches
-  if (user.email?.toLowerCase() !== invite.email.toLowerCase()) {
-    return res.redirect(`${frontendUrl}/dashboard?invite_error=wrong_email&expected=${encodeURIComponent(invite.email)}`)
+  const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(req.user.id)
+  const userEmail = authUser?.user?.email?.toLowerCase()
+  if (userEmail !== invite.email.toLowerCase()) {
+    return res.status(403).json({
+      error: `Diese Einladung gilt für ${invite.email}. Sie sind angemeldet als ${userEmail}.`,
+      reason: 'wrong_email',
+    })
   }
 
-  // Check if already a member
-  const { data: existing } = await supabaseAdmin
+  // Check if already a member of any org
+  const { data: existingMembership } = await supabaseAdmin
     .from('organization_members')
-    .select('id')
-    .eq('org_id', invite.org_id)
-    .eq('user_id', user.id)
+    .select('org_id')
+    .eq('user_id', req.user.id)
     .single()
 
-  if (!existing) {
+  if (existingMembership?.org_id && existingMembership.org_id !== invite.org_id) {
+    return res.status(409).json({ error: 'Sie sind bereits Mitglied einer anderen Organisation.' })
+  }
+
+  if (!existingMembership) {
     // Add to organisation
     await supabaseAdmin
       .from('organization_members')
-      .insert({ org_id: invite.org_id, user_id: user.id, role: invite.role })
+      .insert({ org_id: invite.org_id, user_id: req.user.id, role: invite.role })
 
-    // Update profile org_id
+    // Link profile to org
     await supabaseAdmin
       .from('profiles')
       .update({ org_id: invite.org_id })
-      .eq('auth_user_id', user.id)
+      .eq('auth_user_id', req.user.id)
 
-    console.log(`[INVITE] User ${user.id} accepted invitation to org ${invite.org_id}`)
+    console.log(`[INVITE] User ${req.user.id} joined org ${invite.org_id}`)
   }
 
   // Mark accepted
@@ -224,7 +229,7 @@ router.get('/accept', async (req, res) => {
     .update({ status: 'accepted' })
     .eq('id', invite.id)
 
-  return res.redirect(`${frontendUrl}/dashboard?invite_success=true`)
+  res.json({ success: true })
 })
 
 // GET /api/invitations/pending
