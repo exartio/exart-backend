@@ -47,9 +47,36 @@ export async function processStatement(statementId) {
 
     // Extract text
     console.log(`[RAG] Extracting text from ${statement.file_name}`)
-    const text = await extractText(buffer, mimeType, statement.file_name)
+    let text = await extractText(buffer, mimeType, statement.file_name)
 
-    if (!text || text.length < 100) {
+    // Fallback to Claude Vision for scanned PDFs with no embedded text
+    if ((!text || text.length < 100) && mimeType === 'application/pdf') {
+      console.log(`[RAG] PDF has insufficient text (${text?.length || 0} chars) — falling back to Claude Vision OCR`)
+      const { anthropic, GENERATION_MODEL } = await import('../lib/anthropicClient.js')
+      const message = await anthropic.messages.create({
+        model: GENERATION_MODEL,
+        max_tokens: 4000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'document',
+              source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') },
+            },
+            {
+              type: 'text',
+              text: `Extrahiere den vollständigen Text aus diesem Dokument (${statement.file_name}).
+Behalte die Struktur bei — Überschriften, Absätze, Listen, Tabellen.
+Gib nur den extrahierten Text zurück, keine Erklärungen oder Kommentare.`,
+            },
+          ],
+        }],
+      })
+      text = message.content[0]?.text?.trim() || ''
+      console.log(`[RAG] Claude Vision extracted ${text.length} chars from scanned PDF`)
+    }
+
+    if (!text || text.length < 50) {
       throw new Error('Extracted text too short — file may be empty or unreadable')
     }
 
