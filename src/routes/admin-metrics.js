@@ -359,20 +359,55 @@ router.get('/pending-verifications', requireAdmin, async (req, res) => {
     other:           'Sonstiger Nachweis',
   }
 
-  const result = (docs || []).map(d => ({
-    id:           d.id,
-    doc_type:     docTypeLabels[d.doc_type] || d.doc_type,
-    submitted_at: d.submitted_at,
-    storage_path: d.storage_path,
-    storage_url:  `https://supabase.com/dashboard/project/bcxyychocefmurtblmwa/storage/buckets/verification-documents`,
-    full_name:    d.profiles?.full_name || '—',
-    auth_user_id: d.profiles?.auth_user_id,
-    org_name:     d.profiles?.organizations?.name || '—',
-    verif_status: d.profiles?.verification_status,
-    profile_id:   d.profiles?.id,
+  // Generate signed URLs (valid 1 hour) for direct document access
+  const result = await Promise.all((docs || []).map(async d => {
+    let signed_url = null
+    if (d.storage_path) {
+      const { data: signed } = await supabaseAdmin.storage
+        .from('verification-documents')
+        .createSignedUrl(d.storage_path, 3600)
+      signed_url = signed?.signedUrl || null
+    }
+    return {
+      id:           d.id,
+      doc_type:     docTypeLabels[d.doc_type] || d.doc_type,
+      submitted_at: d.submitted_at,
+      storage_path: d.storage_path,
+      signed_url,
+      full_name:    d.profiles?.full_name || '—',
+      auth_user_id: d.profiles?.auth_user_id,
+      org_name:     d.profiles?.organizations?.name || '—',
+      verif_status: d.profiles?.verification_status,
+      profile_id:   d.profiles?.id,
+    }
   }))
 
   res.json({ pending: result, count: result.length })
+})
+
+// ── POST /api/admin/approve-verification ─────────────────────────────────────
+router.post('/approve-verification', requireAdmin, async (req, res) => {
+  const { doc_id, auth_user_id } = req.body
+  if (!doc_id || !auth_user_id) {
+    return res.status(400).json({ error: 'doc_id and auth_user_id required' })
+  }
+
+  // Mark verification document as approved
+  const { error: docError } = await supabaseAdmin
+    .from('verification_documents')
+    .update({ status: 'approved' })
+    .eq('id', doc_id)
+  if (docError) return res.status(500).json({ error: docError.message })
+
+  // Set profile verification_status to verified
+  const { error: profileError } = await supabaseAdmin
+    .from('profiles')
+    .update({ verification_status: 'verified' })
+    .eq('auth_user_id', auth_user_id)
+  if (profileError) return res.status(500).json({ error: profileError.message })
+
+  console.log(`[ADMIN] Verification approved for auth_user_id=${auth_user_id}, doc_id=${doc_id}`)
+  res.json({ success: true })
 })
 
 export default router
