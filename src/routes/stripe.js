@@ -82,8 +82,8 @@ router.post('/checkout', requireAuth, async (req, res) => {
     line_items: [{ price: planConfig.priceId, quantity: 1 }],
     mode: isOneTime ? 'payment' : 'subscription',
     payment_method_types: paymentMethods,
-    success_url: `https:www.exart.io/dashboard?subscribed=true`,
-    cancel_url: `https:www.exart.io/#preise`,
+    success_url: `https://www.exart.io/dashboard?subscribed=true`,
+    cancel_url: `https://www.exart.io/#preise`,
     metadata: { supabase_org_id: member.org_id, plan },
     locale: 'de',
   }
