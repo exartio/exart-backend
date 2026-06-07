@@ -53,7 +53,7 @@ router.get('/metrics', requireAdmin, async (req, res) => {
   const [backendPing, frontendPing, supabasePing] = await Promise.all([
     ping(`${process.env.RENDER_EXTERNAL_URL || 'https://exart-backend.onrender.com'}/health`, 'Backend (Render)'),
     ping('https://exart.io', 'Frontend (Webflow)'),
-    ping(`${process.env.SUPABASE_URL}/auth/v1/health`, 'Datenbank (Supabase)', { 'apikey': process.env.SUPABASE_KEY }),
+    ping(`${process.env.SUPABASE_URL}/rest/v1/profiles?limit=1`, 'Datenbank (Supabase)', { 'apikey': process.env.SUPABASE_ANON_KEY, 'Authorization': `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` }),
   ])
 
   // ── Users & verification ───────────────────────────────────────────────────
