@@ -406,6 +406,35 @@ router.post('/approve-verification', requireAdmin, async (req, res) => {
     .eq('auth_user_id', auth_user_id)
   if (profileError) return res.status(500).json({ error: profileError.message })
 
+  // Grant 1 free Gutachten if org has no active plan and not yet granted
+  try {
+    const { data: profile } = await supabaseAdmin
+      .from('profiles')
+      .select('org_id')
+      .eq('auth_user_id', auth_user_id)
+      .single()
+
+    if (profile?.org_id) {
+      const { data: sub } = await supabaseAdmin
+        .from('subscriptions')
+        .select('plan, status, addon_unit_count')
+        .eq('org_id', profile.org_id)
+        .single()
+
+      const hasNoActivePlan = !sub || sub.status !== 'active' || sub.plan === 'none'
+      const notYetGranted   = !sub || (sub.addon_unit_count || 0) === 0
+
+      if (hasNoActivePlan && notYetGranted) {
+        await supabaseAdmin
+          .from('subscriptions')
+          .upsert({ org_id: profile.org_id, plan: 'none', status: 'none', addon_unit_count: 1 }, { onConflict: 'org_id' })
+        console.log(`[ADMIN] Free Gutachten granted for org ${profile.org_id}`)
+      }
+    }
+  } catch(grantErr) {
+    console.error('[ADMIN] Free Gutachten grant failed:', grantErr.message)
+  }
+
   console.log(`[ADMIN] Verification approved for auth_user_id=${auth_user_id}, doc_id=${doc_id}`)
   res.json({ success: true })
 })
