@@ -31,7 +31,7 @@ async function getOrgContext(authUserId) {
 // Body: { email, role }
 router.post('/send', requireAuth, async (req, res) => {
   const { email } = req.body
-  const role = 'assistent' // role is determined by verification, not invitation
+  const role = 'member' // role is determined by verification, not invitation
 
   if (!email?.trim()) return res.status(400).json({ error: 'E-Mail-Adresse erforderlich' })
 
