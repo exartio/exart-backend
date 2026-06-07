@@ -116,11 +116,18 @@ router.post('/send', requireAuth, async (req, res) => {
   const token = randomBytes(32).toString('hex')
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
 
-  await supabaseAdmin
+  // invited_by references profiles.id, not auth_user_id
+  const { data: inviterProfileId } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('auth_user_id', req.user.id)
+    .single()
+
+  const { error: inviteError } = await supabaseAdmin
     .from('invitations')
     .upsert({
       org_id:     orgCtx.org_id,
-      invited_by: req.user.id,
+      invited_by: inviterProfileId?.id,
       email:      email.trim().toLowerCase(),
       role,
       token,
@@ -128,20 +135,23 @@ router.post('/send', requireAuth, async (req, res) => {
       expires_at: expiresAt,
     }, { onConflict: 'token' })
 
+  if (inviteError) {
+    console.error('[INVITE] Failed to save invitation:', inviteError.message)
+    return res.status(500).json({ error: 'Einladung konnte nicht gespeichert werden: ' + inviteError.message })
+  }
+
   // Send invitation email
   const acceptUrl = `${process.env.FRONTEND_URL}/einladung-annehmen?token=${token}`
   await sendInvitationEmail({
     recipientEmail: email.trim(),
     inviterName:    inviterProfile?.full_name || 'Ihr Kollege',
     orgName:        org?.name || 'Ihre Organisation',
-    role,
     acceptUrl,
   })
 
   console.log(`[INVITE] Sent invitation to ${email} for org ${orgCtx.org_id} (role: ${role})`)
   res.json({ message: 'Einladung gesendet', email: email.trim() })
 })
-
 // GET /api/invitations/accept?token=xxx
 // Validates token and returns invite details as JSON (no redirects)
 router.get('/accept', async (req, res) => {
@@ -161,7 +171,6 @@ router.get('/accept', async (req, res) => {
     return res.json({ valid: false, reason: 'expired' })
   }
 
-  // Get org name for display
   const { data: org } = await supabaseAdmin
     .from('organizations')
     .select('name')
@@ -187,7 +196,6 @@ router.post('/confirm', requireAuth, async (req, res) => {
   if (invite.status !== 'pending') return res.status(409).json({ error: 'Einladung bereits verwendet' })
   if (new Date(invite.expires_at) < new Date()) return res.status(410).json({ error: 'Einladung abgelaufen' })
 
-  // Verify email matches
   const { data: authUser } = await supabaseAdmin.auth.admin.getUserById(req.user.id)
   const userEmail = authUser?.user?.email?.toLowerCase()
   if (userEmail !== invite.email.toLowerCase()) {
@@ -197,7 +205,6 @@ router.post('/confirm', requireAuth, async (req, res) => {
     })
   }
 
-  // Check if already a member of any org
   const { data: existingMembership } = await supabaseAdmin
     .from('organization_members')
     .select('org_id')
@@ -209,12 +216,10 @@ router.post('/confirm', requireAuth, async (req, res) => {
   }
 
   if (!existingMembership) {
-    // Add to organisation
     await supabaseAdmin
       .from('organization_members')
       .insert({ org_id: invite.org_id, user_id: req.user.id, role: invite.role })
 
-    // Link profile to org
     await supabaseAdmin
       .from('profiles')
       .update({ org_id: invite.org_id })
@@ -223,7 +228,6 @@ router.post('/confirm', requireAuth, async (req, res) => {
     console.log(`[INVITE] User ${req.user.id} joined org ${invite.org_id}`)
   }
 
-  // Mark accepted
   await supabaseAdmin
     .from('invitations')
     .update({ status: 'accepted' })
@@ -233,7 +237,6 @@ router.post('/confirm', requireAuth, async (req, res) => {
 })
 
 // GET /api/invitations/pending
-// List pending invitations for the org
 router.get('/pending', requireAuth, async (req, res) => {
   const orgCtx = await getOrgContext(req.user.id)
   if (!orgCtx?.org_id) return res.status(404).json({ error: 'Not found' })
