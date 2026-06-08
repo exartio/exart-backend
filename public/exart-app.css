@@ -938,3 +938,85 @@ body.app-page { background: var(--cream); }
 .legal-toc ol li a:hover { text-decoration: underline !important; }
 
 .pricing-page-wrap { background: #fff; }
+
+
+
+.app-nav-suite-wrapper {
+  position: relative;
+}
+
+.app-nav-suite-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #b89a5e;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  transition: opacity .15s;
+}
+
+.app-nav-suite-btn:hover {
+  opacity: .8;
+}
+
+.app-nav-suite-btn .ti-chevron-down {
+  font-size: 13px;
+  transition: transform .2s;
+}
+
+.app-nav-suite-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 10px);
+  left: 0;
+  background: #1a2640;
+  border: 0.5px solid rgba(184,154,94,.25);
+  border-radius: 8px;
+  padding: 4px 0;
+  min-width: 180px;
+  z-index: 999;
+}
+
+.app-nav-suite-dropdown.open {
+  display: block;
+}
+
+.suite-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  font-size: 13px;
+  color: #f7f4ef;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background .12s;
+}
+
+.suite-option:hover {
+  background: rgba(255,255,255,.06);
+}
+
+.suite-option-disabled {
+  color: rgba(247,244,239,.3);
+  cursor: default;
+}
+
+.suite-option-disabled:hover {
+  background: transparent;
+}
+
+.suite-soon {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 6px;
+  border-radius: 99px;
+  background: rgba(184,154,94,.15);
+  color: rgba(184,154,94,.5);
+  letter-spacing: .03em;
+}
