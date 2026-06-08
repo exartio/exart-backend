@@ -15,7 +15,7 @@ async function getUserContext(authUserId) {
 
 // POST /api/orgs
 router.post('/', requireAuth, async (req, res) => {
-  const { name, slug } = req.body
+  const { name, slug , bundesland} = req.body
 
   if (!name?.trim()) return res.status(400).json({ error: 'Name ist erforderlich.' })
   if (!slug?.trim()) return res.status(400).json({ error: 'Slug ist erforderlich.' })
@@ -32,9 +32,9 @@ router.post('/', requireAuth, async (req, res) => {
   }
 
   // Create org
-  const { data: org, error: orgError } = await supabaseAdmin
+const { data: org, error: orgError } = await supabaseAdmin
     .from('organizations')
-    .insert({ name: name.trim(), slug: slug.trim() })
+    .insert({ name: name.trim(), slug: slug.trim(), bundesland: bundesland || null })
     .select()
     .single()
 
