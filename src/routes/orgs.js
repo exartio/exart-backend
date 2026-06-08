@@ -49,6 +49,12 @@ router.post('/', requireAuth, async (req, res) => {
     .insert({ org_id: org.id, user_id: req.user.id, role: 'owner' })
 
   if (memberError) throw memberError
+  
+  // Sync org_id to profile
+	await supabaseAdmin
+  .from('profiles')
+  .update({ org_id: org.id })
+  .eq('auth_user_id', req.user.id)
 
   // Seed BGB suite access
   await supabaseAdmin
