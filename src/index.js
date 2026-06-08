@@ -17,6 +17,7 @@ import generateRouter from './routes/generate.js'
 import exportRouter from './routes/export.js'
 import profileRouter from './routes/profile.js'
 import subscriptionsRouter from './routes/subscriptions.js'
+import psychkgCasesRouter from './routes/psychkg-cases.js'
 import templatesRouter from './routes/templates.js'
 
 // ── Catch unhandled rejections before they crash the process ──
@@ -70,6 +71,7 @@ app.use('/api/generate',       generateRouter)
 app.use('/api/export',         exportRouter)
 app.use('/api/profile',        profileRouter)
 app.use('/api/account',        profileRouter)
+app.use('/api/psychkg-cases', psychkgCasesRouter)
 app.use('/api/subscriptions',  subscriptionsRouter)
 app.use('/api/templates',      templatesRouter)
 
