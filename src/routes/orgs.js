@@ -45,11 +45,19 @@ router.get('/me', requireAuth, async (req, res) => {
   if (hasActiveSub && hasPhysician) accessLevel = 'full'
   else if (hasActiveSub || hasPhysician) accessLevel = 'demo'
 
-  res.json({ org, accessLevel, role: member.role || 'sachverstaendige' })
+  // ── Suite access ──────────────────────────────────────────
+  const { data: suiteRows } = await supabaseAdmin
+    .from('org_suite_access')
+    .select('suite')
+    .eq('org_id', member.org_id)
+    .eq('enabled', true)
+
+  const suites = (suiteRows || []).map(r => r.suite)
+
+  res.json({ org, accessLevel, role: member.role || 'sachverstaendige', suites })
 })
 
 // PATCH /api/orgs/me
-// Update org name, address, footer_settings
 router.patch('/me', requireAuth, async (req, res) => {
   const { data: member } = await supabaseAdmin
     .from('organization_members')
@@ -76,7 +84,6 @@ router.patch('/me', requireAuth, async (req, res) => {
 })
 
 // GET /api/orgs/members
-// Returns all members of the user's organisation with profile and auth data
 router.get('/members', requireAuth, async (req, res) => {
   const { data: member } = await supabaseAdmin
     .from('organization_members')
@@ -86,7 +93,6 @@ router.get('/members', requireAuth, async (req, res) => {
 
   if (!member?.org_id) return res.status(404).json({ error: 'Organisation not found' })
 
-  // Get all members of this org
   const { data: members, error } = await supabaseAdmin
     .from('organization_members')
     .select('user_id, role, joined_at')
@@ -95,7 +101,6 @@ router.get('/members', requireAuth, async (req, res) => {
 
   if (error) throw error
 
-  // Enrich with profile and auth data
   const enriched = await Promise.all((members || []).map(async m => {
     const { data: profile } = await supabaseAdmin
       .from('profiles')
@@ -109,7 +114,6 @@ router.get('/members', requireAuth, async (req, res) => {
       email = authUser?.user?.email || null
     } catch(e) {}
 
-    // Determine verified_at from audit_log if available
     const { data: verifiedLog } = await supabaseAdmin
       .from('audit_log')
       .select('created_at')
@@ -119,13 +123,13 @@ router.get('/members', requireAuth, async (req, res) => {
       .limit(1)
 
     return {
-      user_id:              m.user_id,
-      full_name:            profile?.full_name || null,
+      user_id:             m.user_id,
+      full_name:           profile?.full_name || null,
       email,
-      role:                 m.role || 'sachverstaendige',
-      registered_at:        profile?.created_at || m.created_at,
-      verification_status:  profile?.verification_status || 'pending',
-      verified_at:          verifiedLog?.[0]?.created_at || null,
+      role:                m.role || 'sachverstaendige',
+      registered_at:       profile?.created_at || m.joined_at,
+      verification_status: profile?.verification_status || 'pending',
+      verified_at:         verifiedLog?.[0]?.created_at || null,
     }
   }))
 
