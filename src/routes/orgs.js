@@ -13,6 +13,60 @@ async function getUserContext(authUserId) {
   return data
 }
 
+// POST /api/orgs
+router.post('/', requireAuth, async (req, res) => {
+  const { name, slug } = req.body
+
+  if (!name?.trim()) return res.status(400).json({ error: 'Name ist erforderlich.' })
+  if (!slug?.trim()) return res.status(400).json({ error: 'Slug ist erforderlich.' })
+
+  // Check user has no org yet
+  const { data: existingMember } = await supabaseAdmin
+    .from('organization_members')
+    .select('org_id')
+    .eq('user_id', req.user.id)
+    .single()
+
+  if (existingMember?.org_id) {
+    return res.status(400).json({ error: 'User already has an organisation.' })
+  }
+
+  // Create org
+  const { data: org, error: orgError } = await supabaseAdmin
+    .from('organizations')
+    .insert({ name: name.trim(), slug: slug.trim() })
+    .select()
+    .single()
+
+  if (orgError) {
+    if (orgError.code === '23505') return res.status(400).json({ error: 'Dieser Name ist bereits vergeben.' })
+    throw orgError
+  }
+
+  // Add user as owner
+  const { error: memberError } = await supabaseAdmin
+    .from('organization_members')
+    .insert({ org_id: org.id, user_id: req.user.id, role: 'owner' })
+
+  if (memberError) throw memberError
+
+  // Seed BGB suite access
+  await supabaseAdmin
+    .from('org_suite_access')
+    .insert({ org_id: org.id, suite: 'bgb', enabled: true, enabled_at: new Date().toISOString() })
+
+  // Audit log
+  await supabaseAdmin.from('audit_log').insert({
+    org_id:      org.id,
+    user_id:     req.user.id,
+    action:      'org.created',
+    entity_type: 'organizations',
+    entity_id:   org.id,
+  })
+
+  res.status(201).json({ org })
+})
+
 // GET /api/orgs/me
 router.get('/me', requireAuth, async (req, res) => {
   const { data: member } = await supabaseAdmin
