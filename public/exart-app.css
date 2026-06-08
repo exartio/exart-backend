@@ -1020,3 +1020,21 @@ body.app-page { background: var(--cream); }
   color: rgba(184,154,94,.5);
   letter-spacing: .03em;
 }
+
+.footer-inner {
+  display: flex;
+  justify-content: center;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 24px;
+}
+
+.footer-copy {
+  margin: 0;
+  white-space: nowrap;
+}
