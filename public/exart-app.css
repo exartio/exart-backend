@@ -978,7 +978,7 @@ body.app-page { background: var(--cream); }
   border: 0.5px solid rgba(184,154,94,.25);
   border-radius: 8px;
   padding: 4px 0;
-  min-width: 180px;
+  min-width: 220px;
   z-index: 999;
 }
 
