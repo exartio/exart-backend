@@ -19,6 +19,7 @@ import profileRouter from './routes/profile.js'
 import subscriptionsRouter from './routes/subscriptions.js'
 import psychkgCasesRouter from './routes/psychkg-cases.js'
 import templatesRouter from './routes/templates.js'
+import psychkgAnfrageRouter from './routes/psychkg-anfrage.js'
 
 // ── Catch unhandled rejections before they crash the process ──
 process.on('unhandledRejection', (reason, promise) => {
@@ -56,6 +57,8 @@ app.use('/api/stripe/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 
 // Routes
+
+app.use('/api/psychkg-anfrage', psychkgAnfrageRouter)
 app.use('/api/stripe',         stripeRouter)
 app.use('/api/orgs',           orgsRouter)
 app.use('/api/uploads',        uploadsRouter)

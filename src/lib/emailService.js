@@ -709,3 +709,56 @@ export async function sendAdminAccountDeleted({ fullName, email }) {
 </html>`,
   })
 }
+
+
+// ── PsychKG Angebotsanfrage notification to admin ─────────────────────────────
+export async function sendPsychKGAnfrageNotification({
+  name, institution, email, telefon, anmerkungen, created_at, id
+}) {
+  const date = new Date(created_at).toLocaleString('de-DE', {
+    timeZone: 'Europe/Berlin',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  })
+
+  await resend.emails.send({
+    from:    FROM,
+    to:      ADMIN_EMAIL,
+    subject: `[exart.io] PsychKG-Angebotsanfrage — ${institution}`,
+    html: `
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#1a2640;">
+        <div style="background:#1a2640;padding:24px 32px;border-radius:8px 8px 0 0;">
+          <h2 style="margin:0;color:#b89a5e;font-size:18px;">Neue PsychKG-Angebotsanfrage</h2>
+          <p style="margin:4px 0 0;color:rgba(255,255,255,0.6);font-size:13px;">${date}</p>
+        </div>
+        <div style="background:#f7f4ef;padding:24px 32px;border-radius:0 0 8px 8px;">
+          <table style="width:100%;border-collapse:collapse;font-size:14px;">
+            <tr>
+              <td style="padding:8px 0;color:#666;width:140px;">Ansprechpartner</td>
+              <td style="padding:8px 0;font-weight:500;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#666;">Institution</td>
+              <td style="padding:8px 0;font-weight:500;">${institution}</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#666;">E-Mail</td>
+              <td style="padding:8px 0;"><a href="mailto:${email}" style="color:#1a2640;">${email}</a></td>
+            </tr>
+            <tr>
+              <td style="padding:8px 0;color:#666;">Telefon</td>
+              <td style="padding:8px 0;">${telefon || '—'}</td>
+            </tr>
+            ${anmerkungen ? `
+            <tr>
+              <td style="padding:8px 0;color:#666;vertical-align:top;">Anmerkungen</td>
+              <td style="padding:8px 0;">${anmerkungen.replace(/\n/g, '<br>')}</td>
+            </tr>` : ''}
+          </table>
+          <hr style="border:none;border-top:1px solid #ddd;margin:16px 0;">
+          <p style="font-size:12px;color:#999;margin:0;">Anfrage-ID: ${id}</p>
+        </div>
+      </div>
+    `,
+  })
+}
