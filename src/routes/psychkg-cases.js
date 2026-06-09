@@ -53,12 +53,11 @@ router.get('/:id', requireAuth, async (req, res) => {
 })
 
 // POST /api/psychkg-cases
-// Body: { title, patient_ref, bundesland, betroffener_name?, betroffener_dob? }
+// Body: { title, patient_ref, betroffener_name?, betroffener_dob? }
 router.post('/', requireAuth, async (req, res) => {
-  const { title, patient_ref, bundesland, betroffener_name, betroffener_dob } = req.body
+  const { title, patient_ref, betroffener_name, betroffener_dob } = req.body
 
   if (!title) return res.status(400).json({ error: 'title is required' })
-  if (!bundesland) return res.status(400).json({ error: 'bundesland is required' })
 
   const org_id = await getOrgId(req.user.id)
   if (!org_id) return res.status(400).json({ error: 'User has no organisation' })
@@ -75,17 +74,24 @@ router.post('/', requireAuth, async (req, res) => {
     return res.status(403).json({ error: 'psychkg_suite_not_licensed' })
   }
 
+  // Pull bundesland from org
+  const { data: org } = await supabaseAdmin
+    .from('organizations')
+    .select('bundesland')
+    .eq('id', org_id)
+    .single()
+
   const { data: caseRow, error } = await supabaseAdmin
     .from('psychkg_cases')
     .insert({
       org_id,
-      created_by:      req.user.id,
+      created_by:       req.user.id,
       title,
-      patient_ref:     patient_ref || null,
-      bundesland,
+      patient_ref:      patient_ref || null,
+      bundesland:       org?.bundesland || null,
       betroffener_name: betroffener_name || null,
       betroffener_dob:  betroffener_dob || null,
-      status:          'draft',
+      status:           'draft',
     })
     .select()
     .single()
